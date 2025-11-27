@@ -180,11 +180,16 @@ export default function Upload() {
         setLoading(false);
         setRegionalDialogOpen(true);
       } else {
-        // Not regional, navigate directly to analysis
+        // Not regional, navigate to dashboard where user can view the assessment
+        setLoading(false);
+        setActiveStep(2);
+        setCurrentStage(stages.length); // Mark all stages complete
+
+        // Navigate to dashboard after brief delay to show completion
         setTimeout(() => {
-          console.log('Navigating to analysis page:', assessmentId);
-          navigate(`/analysis/${assessmentId}`);
-        }, 500);
+          console.log('Upload complete, navigating to dashboard');
+          navigate('/', { state: { uploadSuccess: true, assessmentId } });
+        }, 1500);
       }
 
     } catch (err) {
@@ -206,7 +211,7 @@ export default function Upload() {
 
   const handleKeepRegional = () => {
     setRegionalDialogOpen(false);
-    navigate(`/analysis/${regionalData.assessmentId}`);
+    navigate('/', { state: { uploadSuccess: true, assessmentId: regionalData.assessmentId } });
   };
 
   const handleSplitIntoCountries = async () => {
@@ -219,10 +224,10 @@ export default function Upload() {
       const response = await splitRegionalAssessment(regionalData.assessmentId);
       console.log('Split response:', response.data);
 
-      // Navigate to the regional assessment (user can see individual countries from assessments list)
+      // Navigate to dashboard (user can see the split countries in the assessments list)
       setTimeout(() => {
-        navigate(`/analysis/${regionalData.assessmentId}`);
-      }, 500);
+        navigate('/', { state: { uploadSuccess: true, splitSuccess: true } });
+      }, 1000);
 
     } catch (err) {
       console.error('Split error:', err);
