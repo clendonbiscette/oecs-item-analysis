@@ -26,9 +26,11 @@ for (const envVar of requiredEnvVars) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security: Configure CORS with specific origin
+// Security: Configure CORS
+// In production (Vercel), frontend and backend are same domain - allow all origins
+// In development, allow localhost
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' ? true : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
   optionsSuccessStatus: 200
 };
