@@ -7,10 +7,10 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Serverless-friendly settings
-  max: 1, // Limit to 1 connection per serverless function instance
+  // Serverless-friendly settings with room for concurrent operations
+  max: 3, // Allow up to 3 connections per serverless function for concurrent queries
   idleTimeoutMillis: 10000, // Close idle connections after 10 seconds
-  connectionTimeoutMillis: 5000, // Wait up to 5 seconds for a connection
+  connectionTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
   allowExitOnIdle: true, // Allow process to exit when all connections are idle
 });
 
