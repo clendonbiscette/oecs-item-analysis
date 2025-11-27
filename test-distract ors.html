@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Distractors API</title>
+</head>
+<body>
+    <h1>Testing Distractors Endpoint</h1>
+    <button onclick="testAPI()">Test API</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const token = localStorage.getItem('token');
+            const resultEl = document.getElementById('result');
+
+            resultEl.textContent = 'Loading...\nToken: ' + (token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+
+            try {
+                const response = await fetch('http://localhost:3000/api/statistics/3/distractors', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                resultEl.textContent = `Status: ${response.status} ${response.statusText}\n\n`;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultEl.textContent += JSON.stringify(data, null, 2);
+                } else {
+                    const error = await response.text();
+                    resultEl.textContent += `Error: ${error}`;
+                }
+            } catch (err) {
+                resultEl.textContent = `Exception: ${err.message}\n${err.stack}`;
+            }
+        }
+    </script>
+</body>
+</html>

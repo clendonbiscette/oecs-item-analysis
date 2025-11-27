@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: oecs-postgres
+    environment:
+      POSTGRES_DB: oecs_analysis
+      POSTGRES_USER: oecs_user
+      POSTGRES_PASSWORD: oecs_pass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oecs_user -d oecs_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: oecs-backend
+    environment:
+      DATABASE_URL: postgresql://oecs_user:oecs_pass123@postgres:5432/oecs_analysis
+      JWT_SECRET: change-this-secret-in-production-please
+      JWT_EXPIRY: 1h
+      PORT: 3000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: npm run dev
+
+volumes:
+  postgres_data:

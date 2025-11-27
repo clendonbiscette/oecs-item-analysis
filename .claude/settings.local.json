@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(node:*)",
+      "Bash(cmd //c taskkill //PID 22144 //F)",
+      "Bash(cmd //c taskkill //PID 1752 //F)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd //c taskkill //PID 23392 //F)",
+      "mcp__ide__getDiagnostics",
+      "Bash(cmd //c taskkill //PID 30272 //F)",
+      "Bash(cmd //c taskkill //PID 20200 //F)",
+      "Bash(cmd //c taskkill //PID 14568 //F)",
+      "Bash(cmd //c taskkill //PID 5844 //F)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
