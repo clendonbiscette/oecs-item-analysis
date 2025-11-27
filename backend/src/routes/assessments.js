@@ -706,93 +706,65 @@ async function calculateStatistics(assessmentId) {
       'sem': sem,
       'n': descriptive.n
     };
-    
+
+    // Collect all statistics for batch insert
+    const allStats = [];
+
+    // Add test-level statistics
     for (const [statType, value] of Object.entries(testStats)) {
       if (value !== null) {
-        await query(
-          `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-           VALUES ($1, $2, $3)`,
-          [assessmentId, statType, value]
-        );
+        allStats.push({ assessmentId, itemId: null, statType, value });
       }
     }
 
-    // Calculate and store performance levels
+    // Calculate and add performance levels
     const maxScore = items.length; // Total number of items
     const performanceLevels = stats.calculatePerformanceLevels(totalScores, maxScore);
 
     if (performanceLevels) {
-      // Store the SDG 4.1.1a indicator as a numeric value
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'sdg_mpl_percentage', performanceLevels.sdg_indicator.mpl_percentage]
-      );
-
-      // Store individual performance level counts
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'perf_below_minimum', performanceLevels.levels.below_minimum.count]
-      );
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'perf_minimum', performanceLevels.levels.minimum.count]
-      );
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'perf_moderate', performanceLevels.levels.moderate.count]
-      );
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'perf_high', performanceLevels.levels.high.count]
-      );
-      await query(
-        `INSERT INTO statistics (assessment_id, stat_type, stat_value)
-         VALUES ($1, $2, $3)`,
-        [assessmentId, 'perf_advanced', performanceLevels.levels.advanced.count]
-      );
+      allStats.push({ assessmentId, itemId: null, statType: 'sdg_mpl_percentage', value: performanceLevels.sdg_indicator.mpl_percentage });
+      allStats.push({ assessmentId, itemId: null, statType: 'perf_below_minimum', value: performanceLevels.levels.below_minimum.count });
+      allStats.push({ assessmentId, itemId: null, statType: 'perf_minimum', value: performanceLevels.levels.minimum.count });
+      allStats.push({ assessmentId, itemId: null, statType: 'perf_moderate', value: performanceLevels.levels.moderate.count });
+      allStats.push({ assessmentId, itemId: null, statType: 'perf_high', value: performanceLevels.levels.high.count });
+      allStats.push({ assessmentId, itemId: null, statType: 'perf_advanced', value: performanceLevels.levels.advanced.count });
     }
 
     // Calculate item-level statistics
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const itemColumn = itemScoresMatrix.map(row => row[i]);
-      
-      // Get all responses for this item
-      const responsesResult = await query(
-        `SELECT r.* FROM responses r
-         JOIN students s ON s.id = r.student_id
-         WHERE r.item_id = $1 AND s.assessment_id = $2`,
-        [item.id, assessmentId]
-      );
 
       const difficulty = stats.calculateDifficulty(students, item.id);
       const discrimination = stats.calculateDiscrimination(students, item.id);
       const pointBiserial = stats.calculatePointBiserial(itemColumn, totalScores);
-      
-      // Store item statistics
-      const itemStats = {
-        'difficulty': difficulty,
-        'discrimination': discrimination,
-        'point_biserial': pointBiserial
-      };
-      
-      for (const [statType, value] of Object.entries(itemStats)) {
-        if (value !== null) {
-          await query(
-            `INSERT INTO statistics (assessment_id, item_id, stat_type, stat_value)
-             VALUES ($1, $2, $3, $4)`,
-            [assessmentId, item.id, statType, value]
-          );
-        }
-      }
+
+      // Add item statistics to batch
+      if (difficulty !== null) allStats.push({ assessmentId, itemId: item.id, statType: 'difficulty', value: difficulty });
+      if (discrimination !== null) allStats.push({ assessmentId, itemId: item.id, statType: 'discrimination', value: discrimination });
+      if (pointBiserial !== null) allStats.push({ assessmentId, itemId: item.id, statType: 'point_biserial', value: pointBiserial });
     }
-    
-    console.log(`✓ Statistics calculated for assessment ${assessmentId}`);
+
+    // Batch insert all statistics in one query
+    if (allStats.length > 0) {
+      const values = [];
+      const params = [];
+      let paramIndex = 1;
+
+      for (const stat of allStats) {
+        values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
+        params.push(stat.assessmentId, stat.itemId, stat.statType, stat.value);
+        paramIndex += 4;
+      }
+
+      await query(
+        `INSERT INTO statistics (assessment_id, item_id, stat_type, stat_value)
+         VALUES ${values.join(', ')}`,
+        params
+      );
+
+      console.log(`✓ Statistics calculated and inserted (${allStats.length} stats) for assessment ${assessmentId}`);
+    }
   } catch (error) {
     console.error('Error calculating statistics:', error);
     throw error;
