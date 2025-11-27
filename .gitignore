@@ -20,6 +20,12 @@ node_modules/
 backend/.env
 frontend/.env
 
+# Deployment credentials and secrets
+DEPLOYMENT_CREDENTIALS.md
+CREDENTIALS.md
+**/credentials.md
+**/secrets.md
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
