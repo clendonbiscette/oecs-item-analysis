@@ -18,7 +18,7 @@ const router = express.Router();
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
+  dest: process.env.UPLOAD_DIR || '/tmp/uploads/',
   limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10485760 }, // 10MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || 

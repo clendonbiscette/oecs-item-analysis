@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "backend/src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/auth/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/assessments/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/users/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/statistics/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/member-states/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/reports/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/comparisons/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/audit-logs/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/dist/$1"
+    }
+  ]
+}
