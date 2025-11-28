@@ -21,6 +21,7 @@ import {
   ListItemButton,
   ListItemText,
   ListItemIcon,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
