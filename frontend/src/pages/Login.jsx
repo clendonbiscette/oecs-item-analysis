@@ -40,15 +40,44 @@ export default function Login() {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        background: 'linear-gradient(135deg, #f0f7ff 0%, #e0f0ff 100%)',
+        background: 'linear-gradient(135deg, #fafbfc 0%, #f8fafc 50%, #f1f5f9 100%)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center' }}>
+      {/* Decorative gradient orbs */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '-10%',
+          right: '-5%',
+          width: '40%',
+          height: '40%',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: '-15%',
+          left: '-10%',
+          width: '50%',
+          height: '50%',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(80px)',
+        }}
+      />
+
+      <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
         <Paper
-          elevation={2}
+          elevation={0}
           sx={{
-            p: 4,
+            p: { xs: 4, sm: 5 },
             width: '100%',
+            boxShadow: '0 4px 20px 0 rgba(0, 0, 0, 0.05)',
           }}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -58,39 +87,46 @@ export default function Login() {
               src="/logo.png"
               alt="OECS Logo"
               sx={{
-                width: 120,
+                width: 100,
                 height: 'auto',
-                mb: 2,
+                mb: 3,
+                opacity: 0.95,
               }}
             />
 
             <Typography
               component="h1"
-              variant="h5"
+              variant="h4"
               sx={{
-                mb: 0.5,
-                fontWeight: 600,
+                mb: 1,
+                fontWeight: 700,
                 color: 'text.primary',
-                textAlign: 'center'
+                textAlign: 'center',
+                letterSpacing: '-0.02em',
               }}
             >
-              Item Analysis Platform
+              Welcome back
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{
-                mb: 3,
-                textAlign: 'center'
+                mb: 4,
+                textAlign: 'center',
+                fontWeight: 400,
               }}
             >
-              OECS Commission
+              Sign in to access the Item Analysis Platform
             </Typography>
 
             {error && (
               <Alert
                 severity="error"
-                sx={{ width: '100%', mb: 2 }}
+                sx={{
+                  width: '100%',
+                  mb: 3,
+                  borderRadius: 2.5,
+                }}
               >
                 {error}
               </Alert>
@@ -109,6 +145,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
+                sx={{ mb: 2 }}
               />
               <TextField
                 margin="normal"
@@ -122,13 +159,19 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
+                sx={{ mb: 3 }}
               />
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
                 size="large"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  borderRadius: 2.5,
+                }}
                 disabled={loading}
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
@@ -136,18 +179,40 @@ export default function Login() {
 
               <Box
                 sx={{
-                  mt: 2,
-                  p: 2,
-                  backgroundColor: 'background.default',
-                  borderRadius: 1,
+                  mt: 4,
+                  p: 2.5,
+                  backgroundColor: 'rgba(99, 102, 241, 0.04)',
+                  borderRadius: 2.5,
                   border: '1px solid',
-                  borderColor: 'divider',
+                  borderColor: 'rgba(99, 102, 241, 0.1)',
                 }}
               >
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', fontWeight: 500 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: 'block',
+                    textAlign: 'center',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    mb: 1,
+                  }}
+                >
                   Demo Credentials
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    display: 'block',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    color: 'primary.main',
+                    fontFamily: 'monospace',
+                  }}
+                >
                   admin@oecs.org / admin123
                 </Typography>
               </Box>
@@ -156,9 +221,13 @@ export default function Login() {
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ mt: 3, textAlign: 'center' }}
+              sx={{
+                mt: 4,
+                textAlign: 'center',
+                fontSize: '0.75rem',
+              }}
             >
-              © 2025 OECS Commission
+              © 2025 OECS Commission - Education Sector
             </Typography>
           </Box>
         </Paper>

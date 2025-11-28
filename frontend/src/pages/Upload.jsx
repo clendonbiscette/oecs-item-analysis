@@ -253,13 +253,41 @@ export default function Upload() {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Typography variant="h4" gutterBottom>
-        Upload Assessment
-      </Typography>
+    <Box>
+      {/* Header Section */}
+      <Box sx={{ mb: 5 }}>
+        <Typography
+          variant="h3"
+          sx={{
+            mb: 1,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Upload Assessment
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1rem' }}>
+          Upload and process assessment data with automatic validation
+        </Typography>
+      </Box>
 
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+      <Paper sx={{ p: { xs: 3, sm: 5 }, overflow: 'hidden' }}>
+        <Stepper
+          activeStep={activeStep}
+          sx={{
+            mb: 5,
+            '& .MuiStepLabel-label': {
+              fontSize: '0.9375rem',
+              fontWeight: 500,
+            },
+            '& .MuiStepLabel-label.Mui-active': {
+              fontWeight: 600,
+            },
+            '& .MuiStepConnector-line': {
+              borderTopWidth: 2,
+            },
+          }}
+        >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -268,7 +296,11 @@ export default function Upload() {
         </Stepper>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          <Alert
+            severity="error"
+            sx={{ mb: 4 }}
+            onClose={() => setError('')}
+          >
             {error}
           </Alert>
         )}
@@ -276,34 +308,44 @@ export default function Upload() {
         {/* Step 0: Upload File */}
         {activeStep === 0 && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Select Assessment File
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Upload a CSV or Excel file containing student responses. Make sure the first row
-              contains StudentID="KEY" with the answer key.
-            </Typography>
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
+                Select Assessment File
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+                Upload a CSV or Excel file containing student responses. Ensure the first row
+                contains StudentID="KEY" with the answer key.
+              </Typography>
+            </Box>
 
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadTemplate}
-              sx={{ mb: 3 }}
-            >
-              Download CSV Template
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadTemplate}
+                sx={{
+                  borderRadius: 2.5,
+                  px: 3,
+                }}
+              >
+                Download CSV Template
+              </Button>
+            </Box>
 
             <Box
               sx={{
-                border: '2px dashed',
-                borderColor: 'primary.main',
-                borderRadius: 2,
-                p: 4,
+                border: '3px dashed',
+                borderColor: file ? 'success.main' : 'primary.main',
+                borderRadius: 4,
+                p: 6,
                 textAlign: 'center',
-                backgroundColor: 'background.default',
+                backgroundColor: file ? 'rgba(16, 185, 129, 0.04)' : 'rgba(99, 102, 241, 0.04)',
                 cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
                 '&:hover': {
-                  backgroundColor: 'action.hover',
+                  backgroundColor: file ? 'rgba(16, 185, 129, 0.08)' : 'rgba(99, 102, 241, 0.08)',
+                  borderColor: file ? 'success.dark' : 'primary.dark',
+                  transform: 'translateY(-2px)',
                 },
               }}
               component="label"
@@ -315,18 +357,35 @@ export default function Upload() {
                 onChange={handleFileSelect}
                 disabled={loading}
               />
-              <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h6">
-                {file ? file.name : 'Click to select file'}
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  backgroundColor: file ? 'success.main' : 'primary.main',
+                  color: 'white',
+                  mb: 3,
+                }}
+              >
+                <UploadIcon sx={{ fontSize: 40 }} />
+              </Box>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                {file ? file.name : 'Click to select or drag file here'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                CSV or Excel files accepted (Max 10MB)
+                CSV or Excel files accepted • Maximum 10MB
               </Typography>
             </Box>
 
             {loading && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <CircularProgress />
+              <Box display="flex" flexDirection="column" alignItems="center" mt={4}>
+                <CircularProgress size={40} />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  Validating file...
+                </Typography>
               </Box>
             )}
           </Box>
@@ -411,12 +470,19 @@ export default function Upload() {
               </Paper>
             )}
 
-            <Box display="flex" gap={2} mt={3}>
-              <Button onClick={handleReset}>Start Over</Button>
+            <Box display="flex" gap={2} mt={4} justifyContent="center">
+              <Button
+                variant="outlined"
+                onClick={handleReset}
+                sx={{ px: 4 }}
+              >
+                Start Over
+              </Button>
               <Button
                 variant="contained"
                 onClick={handleNext}
                 disabled={!validation.valid}
+                sx={{ px: 4 }}
               >
                 Continue
               </Button>
@@ -427,134 +493,174 @@ export default function Upload() {
         {/* Step 2: Confirm Details */}
         {activeStep === 2 && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Assessment Details
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Provide information about this assessment
-            </Typography>
+            <Box sx={{ textAlign: 'center', mb: 5 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
+                Assessment Details
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Provide information about this assessment
+              </Typography>
+            </Box>
 
-            <TextField
-              fullWidth
-              label="Assessment Name"
-              value={assessmentName}
-              onChange={(e) => setAssessmentName(e.target.value)}
-              required
-              sx={{ mb: 2 }}
-              placeholder="e.g., 2025 OERA - Regional or 2025 OERA - Grenada"
-            />
+            <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+              <TextField
+                fullWidth
+                label="Assessment Name"
+                value={assessmentName}
+                onChange={(e) => setAssessmentName(e.target.value)}
+                required
+                sx={{ mb: 3 }}
+                placeholder="e.g., 2025 OERA - Regional or 2025 OERA - Grenada"
+              />
 
-            <TextField
-              fullWidth
-              label="Assessment Year"
-              type="number"
-              value={assessmentYear}
-              onChange={(e) => setAssessmentYear(e.target.value)}
-              required
-              sx={{ mb: 2 }}
-            />
+              <TextField
+                fullWidth
+                label="Assessment Year"
+                type="number"
+                value={assessmentYear}
+                onChange={(e) => setAssessmentYear(e.target.value)}
+                required
+                sx={{ mb: 3 }}
+              />
 
-            <FormControl fullWidth required sx={{ mb: 3 }}>
-              <InputLabel>Member State / Region</InputLabel>
-              <Select
-                value={country}
-                label="Member State / Region"
-                onChange={(e) => setCountry(e.target.value)}
-              >
-                <MenuItem value="Regional">
-                  <strong>Regional (Multiple Countries)</strong>
-                </MenuItem>
-                {memberStates.map((state) => (
-                  <MenuItem key={state.id} value={state.state_name}>
-                    {state.state_name}
+              <FormControl fullWidth required sx={{ mb: 3 }}>
+                <InputLabel>Member State / Region</InputLabel>
+                <Select
+                  value={country}
+                  label="Member State / Region"
+                  onChange={(e) => setCountry(e.target.value)}
+                >
+                  <MenuItem value="Regional">
+                    <strong>Regional (Multiple Countries)</strong>
                   </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  {memberStates.map((state) => (
+                    <MenuItem key={state.id} value={state.state_name}>
+                      {state.state_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            {country === 'Regional' && (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography variant="body2">
-                  <strong>Regional Upload:</strong> The system will automatically detect countries
-                  in your data and create separate assessments for each member state, while preserving
-                  the regional assessment for overall analysis.
-                </Typography>
-              </Alert>
-            )}
+              {country === 'Regional' && (
+                <Alert severity="info" sx={{ mb: 4 }}>
+                  <Typography variant="body2">
+                    <strong>Regional Upload:</strong> The system will automatically detect countries
+                    in your data and create separate assessments for each member state, while preserving
+                    the regional assessment for overall analysis.
+                  </Typography>
+                </Alert>
+              )}
 
-            <Box display="flex" gap={2}>
-              <Button onClick={() => setActiveStep(1)}>Back</Button>
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={!assessmentName || !country}
-              >
-                Upload Assessment
-              </Button>
+              <Box display="flex" gap={2} mt={4}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setActiveStep(1)}
+                  sx={{ flex: 1, py: 1.25 }}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  disabled={!assessmentName || !country}
+                  sx={{ flex: 1, py: 1.25 }}
+                >
+                  Upload Assessment
+                </Button>
+              </Box>
             </Box>
           </Box>
         )}
 
         {/* Step 3: Processing */}
         {activeStep === 3 && (
-          <Box py={4}>
-            <Typography variant="h6" gutterBottom textAlign="center">
-              Processing Assessment
-            </Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
-              Processing {validation?.summary?.studentCount || 0} students and {validation?.summary?.itemCount || 0} items
-            </Typography>
+          <Box py={6}>
+            <Box sx={{ textAlign: 'center', mb: 5 }}>
+              <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
+                Processing Assessment
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Processing {validation?.summary?.studentCount || 0} students and {validation?.summary?.itemCount || 0} items
+              </Typography>
+            </Box>
 
             {/* Progress Bar */}
-            <Box sx={{ mb: 4 }}>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2" color="text.secondary">
+            <Box sx={{ maxWidth: 600, mx: 'auto', mb: 5 }}>
+              <Box display="flex" justifyContent="space-between" mb={2}>
+                <Typography variant="body2" color="text.secondary" fontWeight={600}>
                   Overall Progress
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="primary.main" fontWeight={700}>
                   {Math.round(uploadProgress)}%
                 </Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
                 value={uploadProgress}
-                sx={{ height: 8, borderRadius: 4 }}
+                sx={{
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: 'grey.100',
+                  '& .MuiLinearProgress-bar': {
+                    borderRadius: 5,
+                    background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)',
+                  },
+                }}
               />
             </Box>
 
             {/* Stage List */}
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <List dense>
-                {PROGRESS_STAGES.map((stage, index) => {
-                  const isCompleted = index < currentStage;
-                  const isCurrent = index === currentStage;
-                  const isPending = index > currentStage;
+            <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+                <List>
+                  {PROGRESS_STAGES.map((stage, index) => {
+                    const isCompleted = index < currentStage;
+                    const isCurrent = index === currentStage;
+                    const isPending = index > currentStage;
 
-                  return (
-                    <ListItem key={stage.key}>
-                      <ListItemIcon>
-                        {isCompleted && <CheckIcon color="success" />}
-                        {isCurrent && <CircularProgress size={24} />}
-                        {isPending && <PendingIcon color="disabled" />}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={stage.label}
-                        primaryTypographyProps={{
-                          color: isCompleted ? 'success.main' : isCurrent ? 'primary' : 'text.secondary',
-                          fontWeight: isCurrent ? 'bold' : 'normal',
+                    return (
+                      <ListItem
+                        key={stage.key}
+                        sx={{
+                          py: 1.5,
+                          px: 0,
+                          borderRadius: 2,
+                          transition: 'all 0.2s ease-in-out',
+                          backgroundColor: isCurrent ? 'rgba(99, 102, 241, 0.04)' : 'transparent',
                         }}
-                      />
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Paper>
+                      >
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          {isCompleted && <CheckIcon sx={{ color: 'success.main', fontSize: 28 }} />}
+                          {isCurrent && <CircularProgress size={24} />}
+                          {isPending && <PendingIcon sx={{ color: 'grey.300', fontSize: 28 }} />}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={stage.label}
+                          primaryTypographyProps={{
+                            color: isCompleted ? 'success.main' : isCurrent ? 'primary.main' : 'text.secondary',
+                            fontWeight: isCurrent ? 600 : 500,
+                            fontSize: '0.9375rem',
+                          }}
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Paper>
 
-            <Alert severity="info" sx={{ mt: 3 }}>
-              <Typography variant="body2">
-                <strong>Please wait:</strong> Large files may take 2-3 minutes. Do not close this window.
-              </Typography>
-            </Alert>
+              <Alert
+                severity="info"
+                sx={{
+                  mt: 4,
+                  borderRadius: 2.5,
+                  backgroundColor: 'rgba(59, 130, 246, 0.04)',
+                }}
+              >
+                <Typography variant="body2">
+                  <strong>Please wait:</strong> Large files may take 2-3 minutes. Do not close this window.
+                </Typography>
+              </Alert>
+            </Box>
           </Box>
         )}
       </Paper>
@@ -565,38 +671,73 @@ export default function Upload() {
         onClose={handleKeepRegional}
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1,
+          },
+        }}
       >
-        <DialogTitle>Regional Assessment Detected</DialogTitle>
+        <DialogTitle sx={{ pb: 2 }}>
+          <Typography variant="h5" fontWeight={600}>
+            Regional Assessment Detected
+          </Typography>
+        </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
+          <Typography variant="body1" sx={{ mb: 3 }}>
             We found <strong>{regionalData?.countries.length || 0} countries</strong> in your uploaded data:
           </Typography>
 
-          <List dense sx={{ mt: 2, mb: 2 }}>
-            {regionalData?.countries.map((country, index) => (
-              <ListItem key={index}>
-                <ListItemText
-                  primary={country.name}
-                  secondary={`${country.studentCount} students`}
-                />
-              </ListItem>
-            ))}
-          </List>
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+            <List dense disablePadding>
+              {regionalData?.countries.map((country, index) => (
+                <ListItem
+                  key={index}
+                  sx={{
+                    py: 1,
+                    borderBottom: index < (regionalData?.countries.length || 0) - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" fontWeight={600}>
+                        {country.name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption" color="text.secondary">
+                        {country.studentCount} students
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
 
           <Typography variant="body2" color="text.secondary">
             Would you like to create separate assessments for each country? This will allow
             individual country analysis while keeping the regional assessment for overall comparison.
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleKeepRegional} variant="outlined">
+        <DialogActions sx={{ p: 3, pt: 2 }}>
+          <Button
+            onClick={handleKeepRegional}
+            variant="outlined"
+            sx={{ px: 3, py: 1 }}
+          >
             Keep Regional Only
           </Button>
-          <Button onClick={handleSplitIntoCountries} variant="contained" color="primary">
+          <Button
+            onClick={handleSplitIntoCountries}
+            variant="contained"
+            sx={{ px: 3, py: 1 }}
+          >
             Split into Countries
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 }

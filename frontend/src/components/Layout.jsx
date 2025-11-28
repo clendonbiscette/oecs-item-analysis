@@ -92,20 +92,23 @@ export default function Layout() {
         position="sticky"
         elevation={0}
         sx={{
-          background: 'linear-gradient(to bottom, #ffffff 0%, #f8fbff 100%)',
-          borderBottom: '2px solid',
-          borderColor: 'primary.main',
+          backgroundColor: '#ffffff',
+          backdropFilter: 'blur(10px)',
         }}
       >
         <Container maxWidth="xl">
-          <Toolbar disableGutters sx={{ minHeight: { xs: 64, sm: 70 } }}>
+          <Toolbar disableGutters sx={{ minHeight: { xs: 64, sm: 72 }, py: 1 }}>
             {/* Logo / Brand */}
-            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: { xs: 1, md: 0 }, mr: { md: 4 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: { xs: 1, md: 0 }, mr: { md: 5 } }}>
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s ease-in-out',
+                  '&:hover': {
+                    opacity: 0.8,
+                  }
                 }}
                 onClick={() => navigate('/')}
               >
@@ -114,20 +117,20 @@ export default function Layout() {
                   src="/logo.png"
                   alt="OECS Logo"
                   sx={{
-                    height: 40,
+                    height: 36,
                     width: 'auto',
-                    mr: 1.5,
+                    mr: 2,
                   }}
                 />
-                <Box>
+                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                   <Typography
                     variant="h6"
                     sx={{
                       fontWeight: 700,
                       color: 'text.primary',
-                      fontSize: '1.1rem',
+                      fontSize: '1.05rem',
                       lineHeight: 1.2,
-                      display: { xs: 'none', sm: 'block' }
+                      letterSpacing: '-0.01em',
                     }}
                   >
                     OECS Commission
@@ -136,9 +139,9 @@ export default function Layout() {
                     variant="caption"
                     sx={{
                       color: 'text.secondary',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       lineHeight: 1,
-                      display: { xs: 'none', sm: 'block' }
+                      fontWeight: 500,
                     }}
                   >
                     Item Analysis Platform
@@ -147,62 +150,59 @@ export default function Layout() {
               </Box>
             </Box>
 
-            {/* Desktop Navigation Tabs */}
-            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-              <Tabs
-                value={getCurrentTab()}
-                sx={{
-                  '& .MuiTabs-indicator': {
-                    backgroundColor: 'primary.main',
-                    height: 3,
-                  },
-                }}
-              >
-                {navItems.map((item, index) => (
-                  <Tab
+            {/* Desktop Navigation Pills */}
+            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Button
                     key={item.path}
-                    label={item.label}
-                    icon={item.icon}
-                    iconPosition="start"
+                    startIcon={item.icon}
                     onClick={() => navigate(item.path)}
                     sx={{
-                      minHeight: 70,
-                      textTransform: 'none',
+                      px: 2.5,
+                      py: 1,
+                      borderRadius: 2.5,
+                      color: isActive ? 'primary.main' : 'text.secondary',
+                      backgroundColor: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
+                      fontWeight: isActive ? 600 : 500,
                       fontSize: '0.9375rem',
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      '&.Mui-selected': {
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        backgroundColor: isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.04)',
                         color: 'primary.main',
-                        fontWeight: 600,
                       },
                       '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem',
+                        fontSize: '1.2rem',
                       },
                     }}
-                  />
-                ))}
-              </Tabs>
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
             </Box>
 
             {/* User Menu */}
-            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
               <Button
                 onClick={handleUserMenu}
-                startIcon={<AccountCircle />}
+                endIcon={<AccountCircle />}
                 sx={{
                   color: 'text.primary',
-                  textTransform: 'none',
                   px: 2,
+                  py: 1,
+                  borderRadius: 2.5,
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.2s ease-in-out',
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
                   },
                 }}
               >
-                <Box sx={{ textAlign: 'left', ml: 1 }}>
-                  <Typography variant="body2" fontWeight={500} fontSize="0.875rem">
-                    {user?.fullName}
-                  </Typography>
-                </Box>
+                {user?.fullName?.split(' ')[0]}
               </Button>
               <Menu
                 anchorEl={anchorEl}
@@ -210,22 +210,35 @@ export default function Layout() {
                 onClose={handleCloseUserMenu}
                 PaperProps={{
                   sx: {
-                    mt: 1,
-                    minWidth: 200,
-                    borderRadius: 2,
+                    mt: 1.5,
+                    minWidth: 220,
+                    boxShadow: '0 4px 12px 0 rgba(0, 0, 0, 0.08)',
                   }
                 }}
               >
-                <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
                     {user?.fullName}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {user?.email}
                   </Typography>
+                  <Chip
+                    label={user?.role}
+                    size="small"
+                    sx={{
+                      mt: 1,
+                      height: '22px',
+                      fontSize: '0.7rem',
+                      backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                      color: 'primary.main',
+                    }}
+                  />
                 </Box>
-                <MenuItem onClick={handleLogout} sx={{ mt: 0.5, py: 1.5 }}>
-                  Logout
+                <MenuItem onClick={handleLogout} sx={{ py: 1.5, px: 3, mt: 0.5 }}>
+                  <Typography variant="body2" fontWeight={500}>
+                    Logout
+                  </Typography>
                 </MenuItem>
               </Menu>
             </Box>
@@ -234,7 +247,11 @@ export default function Layout() {
             <IconButton
               size="large"
               onClick={handleMobileMenuToggle}
-              sx={{ display: { md: 'none' }, color: 'text.primary' }}
+              sx={{
+                display: { md: 'none' },
+                color: 'text.primary',
+                borderRadius: 2.5,
+              }}
             >
               <MenuIcon />
             </IconButton>
@@ -316,9 +333,10 @@ export default function Layout() {
         sx={{
           flexGrow: 1,
           backgroundColor: 'background.default',
+          minHeight: '80vh',
         }}
       >
-        <Container maxWidth="xl" sx={{ py: { xs: 3, sm: 4 } }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 4, sm: 6 } }}>
           <Outlet />
         </Container>
       </Box>
@@ -327,16 +345,24 @@ export default function Layout() {
       <Box
         component="footer"
         sx={{
-          py: 3,
+          py: 4,
           px: 2,
           mt: 'auto',
-          backgroundColor: 'white',
+          backgroundColor: '#ffffff',
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
       >
         <Container maxWidth="xl">
-          <Typography variant="body2" color="text.secondary" align="center">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            align="center"
+            sx={{
+              fontSize: '0.8125rem',
+              fontWeight: 400,
+            }}
+          >
             © 2025 Organisation of Eastern Caribbean States (OECS) Commission - Education Sector
           </Typography>
         </Container>
