@@ -367,20 +367,23 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
       let paramIndex = 1;
 
       for (const student of studentsWithScores) {
-        studentValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
+        studentValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7})`);
         studentParams.push(
           assessmentId,
           student.studentId,
           student.gender,
           student.country,
-          student.totalScore
+          student.totalScore,
+          student.school || null,
+          student.schoolType || null,
+          student.district || null
         );
-        paramIndex += 5;
+        paramIndex += 8;
       }
 
       try {
         const studentResult = await client.query(
-          `INSERT INTO students (assessment_id, student_code, gender, country, total_score)
+          `INSERT INTO students (assessment_id, student_code, gender, country, total_score, school, school_type, district)
            VALUES ${studentValues.join(', ')}
            ON CONFLICT (assessment_id, student_code, country) DO NOTHING
            RETURNING id, student_code, country`,
@@ -430,11 +433,11 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
         for (const student of studentsWithScores) {
           try {
             const result = await client.query(
-              `INSERT INTO students (assessment_id, student_code, gender, country, total_score)
-               VALUES ($1, $2, $3, $4, $5)
+              `INSERT INTO students (assessment_id, student_code, gender, country, total_score, school, school_type, district)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (assessment_id, student_code, country) DO NOTHING
                RETURNING id, student_code, country`,
-              [assessmentId, student.studentId, student.gender, student.country, student.totalScore]
+              [assessmentId, student.studentId, student.gender, student.country, student.totalScore, student.school || null, student.schoolType || null, student.district || null]
             );
             if (result.rows.length > 0) {
               const key = `${student.studentId}:${student.country || ''}`;

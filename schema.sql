@@ -98,11 +98,17 @@ CREATE TABLE students (
     student_code VARCHAR(100) NOT NULL,
     gender VARCHAR(1) CHECK (gender IN ('M', 'F')),
     country VARCHAR(100),  -- For regional assessments with multiple countries
+    school VARCHAR(200),  -- School name or code
+    school_type VARCHAR(100),  -- Type of school (public, private, denominational)
+    district VARCHAR(200),  -- Educational district or region within country
     total_score DECIMAL(5,2),
     UNIQUE(assessment_id, student_code, country)
 );
 
 COMMENT ON COLUMN students.country IS 'Country code for regional assessments (can differ from assessment.country_id)';
+COMMENT ON COLUMN students.school IS 'School name or code where student is enrolled';
+COMMENT ON COLUMN students.school_type IS 'Type of school (e.g., public, private, denominational)';
+COMMENT ON COLUMN students.district IS 'Educational district or region within country';
 
 -- ============================================================================
 -- RESPONSES TABLE (Student Answers)

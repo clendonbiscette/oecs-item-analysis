@@ -109,12 +109,15 @@ export function parseOERAFile(filePath, mimeType) {
   const idColumnIndex = headerRow.findIndex(h => String(h).trim() === 'ID');
   const nameColumnIndex = headerRow.findIndex(h => String(h).trim() === 'Name');
   const sexColumnIndex = headerRow.findIndex(h => String(h).trim() === 'Sex');
+  const schoolColumnIndex = headerRow.findIndex(h => String(h).trim() === 'School');
+  const schoolTypeColumnIndex = headerRow.findIndex(h => String(h).trim() === 'School_Type' || String(h).trim() === 'School Type');
+  const districtColumnIndex = headerRow.findIndex(h => String(h).trim() === 'District');
 
   if (idColumnIndex === -1) {
     throw new Error('ID column not found in header row');
   }
 
-  console.log(`Column indices - ID: ${idColumnIndex}, Name: ${nameColumnIndex}, Sex: ${sexColumnIndex}`);
+  console.log(`Column indices - ID: ${idColumnIndex}, Name: ${nameColumnIndex}, Sex: ${sexColumnIndex}, School: ${schoolColumnIndex}, School_Type: ${schoolTypeColumnIndex}, District: ${districtColumnIndex}`);
 
   for (let i = dataStartIndex; i < rawData.length; i++) {
     const row = rawData[i];
@@ -134,11 +137,19 @@ export function parseOERAFile(filePath, mimeType) {
     const genderValue = sexColumnIndex !== -1 && row[sexColumnIndex] ? String(row[sexColumnIndex]).trim().toUpperCase() : '';
     const gender = genderValue === '' ? null : genderValue;
 
+    // Extract school information
+    const schoolValue = schoolColumnIndex !== -1 && row[schoolColumnIndex] ? String(row[schoolColumnIndex]).trim() : null;
+    const schoolTypeValue = schoolTypeColumnIndex !== -1 && row[schoolTypeColumnIndex] ? String(row[schoolTypeColumnIndex]).trim() : null;
+    const districtValue = districtColumnIndex !== -1 && row[districtColumnIndex] ? String(row[districtColumnIndex]).trim() : null;
+
     const student = {
       studentId,
       name: nameValue,
       country: nameValue, // Store country code from Name column
       gender: gender,
+      school: schoolValue,
+      schoolType: schoolTypeValue,
+      district: districtValue,
       responses: {}
     };
 
