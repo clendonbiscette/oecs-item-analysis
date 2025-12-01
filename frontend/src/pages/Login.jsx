@@ -176,46 +176,6 @@ export default function Login() {
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
               </Button>
-
-              <Box
-                sx={{
-                  mt: 4,
-                  p: 2.5,
-                  backgroundColor: 'rgba(99, 102, 241, 0.04)',
-                  borderRadius: 2.5,
-                  border: '1px solid',
-                  borderColor: 'rgba(99, 102, 241, 0.1)',
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    display: 'block',
-                    textAlign: 'center',
-                    fontWeight: 600,
-                    fontSize: '0.7rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    mb: 1,
-                  }}
-                >
-                  Demo Credentials
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    display: 'block',
-                    textAlign: 'center',
-                    fontWeight: 500,
-                    fontSize: '0.875rem',
-                    color: 'primary.main',
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  admin@oecs.org / admin123
-                </Typography>
-              </Box>
             </Box>
 
             <Typography
@@ -227,7 +187,7 @@ export default function Login() {
                 fontSize: '0.75rem',
               }}
             >
-              © 2025 OECS Commission - Education Sector
+              © {new Date().getFullYear()} OECS Commission
             </Typography>
           </Box>
         </Paper>

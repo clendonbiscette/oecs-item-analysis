@@ -364,7 +364,7 @@ export default function Layout() {
               fontWeight: 400,
             }}
           >
-            © 2025 Organisation of Eastern Caribbean States (OECS) Commission - Education Sector
+            © {new Date().getFullYear()} OECS Commission
           </Typography>
         </Container>
       </Box>
