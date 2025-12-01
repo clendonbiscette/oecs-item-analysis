@@ -170,6 +170,22 @@ export const getContentDomainAnalysis = (assessmentId) => {
   return api.get(`/statistics/${assessmentId}/content-domain-analysis`);
 };
 
+export const getPercentileAnalysis = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/percentile-analysis`);
+};
+
+export const getSchoolAnalysis = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/school-analysis`);
+};
+
+export const getDistrictAnalysis = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/district-analysis`);
+};
+
+export const getSchoolTypeAnalysis = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/school-type-analysis`);
+};
+
 export const getDistractorAnalysis = (assessmentId) => {
   return api.get(`/statistics/${assessmentId}/distractors`);
 };

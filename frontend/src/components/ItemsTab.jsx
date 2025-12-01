@@ -253,6 +253,8 @@ export default function ItemsTab({ assessmentId, items }) {
                   <strong>Item</strong>
                 </TableSortLabel>
               </TableCell>
+              <TableCell><strong>Type</strong></TableCell>
+              <TableCell><strong>Max Points</strong></TableCell>
               <TableCell>
                 <TableSortLabel
                   active={orderBy === 'difficulty'}
@@ -289,6 +291,15 @@ export default function ItemsTab({ assessmentId, items }) {
             {sortedItems.map((item) => (
               <TableRow key={item.id} hover>
                 <TableCell>{item.item_code}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={item.item_type || 'MC'}
+                    size="small"
+                    color={item.item_type === 'CR' ? 'secondary' : 'primary'}
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell>{item.max_points || 1}</TableCell>
                 <TableCell>
                   {item.statistics.difficulty?.toFixed(3) || '-'}
                 </TableCell>

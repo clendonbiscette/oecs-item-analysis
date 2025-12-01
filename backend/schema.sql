@@ -1,6 +1,7 @@
 -- OECS Item Analysis Platform - Complete Database Schema
 -- This schema includes all migrations integrated for fresh installations
--- Version: 2.0 (synchronized with migrations 001-003)
+-- Version: 3.0 (synchronized with migrations 001-004)
+-- Migration 004 adds: weighted scoring (max_points, item_type, points_earned) and demographics (school, district, school_type)
 
 -- ============================================================================
 -- DROP EXISTING TABLES (for clean reinstall)
@@ -83,10 +84,18 @@ CREATE TABLE items (
     assessment_id INTEGER REFERENCES assessments(id) ON DELETE CASCADE,
     item_code VARCHAR(20) NOT NULL,
     correct_answer VARCHAR(10),
+    max_points INTEGER DEFAULT 1 CHECK (max_points >= 1 AND max_points <= 10),
+    item_type VARCHAR(10) DEFAULT 'MC' CHECK (item_type IN ('MC', 'CR')),
     content_domain VARCHAR(20),
     cognitive_level VARCHAR(20),
     UNIQUE(assessment_id, item_code)
 );
+
+COMMENT ON COLUMN items.correct_answer IS 'Correct answer for MC items (A/B/C/D), NULL for CR items';
+COMMENT ON COLUMN items.max_points IS 'Maximum points possible (1 for MC, varies for CR)';
+COMMENT ON COLUMN items.item_type IS 'MC (Multiple Choice) or CR (Constructed Response)';
+COMMENT ON COLUMN items.content_domain IS 'Curriculum outcome/content area (optional)';
+COMMENT ON COLUMN items.cognitive_level IS 'Bloom''s taxonomy level (optional)';
 
 -- ============================================================================
 -- STUDENTS TABLE (Test Takers)
@@ -97,11 +106,17 @@ CREATE TABLE students (
     student_code VARCHAR(100) NOT NULL,
     gender VARCHAR(1) CHECK (gender IN ('M', 'F')),
     country VARCHAR(100),  -- For regional assessments with multiple countries
+    school VARCHAR(200),
+    district VARCHAR(200),
+    school_type VARCHAR(100),
     total_score DECIMAL(5,2),
     UNIQUE(assessment_id, student_code, country)
 );
 
 COMMENT ON COLUMN students.country IS 'Country code for regional assessments (can differ from assessment.country_id)';
+COMMENT ON COLUMN students.school IS 'School name or code';
+COMMENT ON COLUMN students.district IS 'Educational district or region';
+COMMENT ON COLUMN students.school_type IS 'Type of school: Public, Private, Denominational, etc.';
 
 -- ============================================================================
 -- RESPONSES TABLE (Student Answers)
@@ -112,8 +127,13 @@ CREATE TABLE responses (
     item_id INTEGER REFERENCES items(id) ON DELETE CASCADE,
     response_value VARCHAR(10),
     is_correct BOOLEAN,
+    points_earned DECIMAL(4,2) DEFAULT 0 CHECK (points_earned >= 0),
     UNIQUE(student_id, item_id)
 );
+
+COMMENT ON COLUMN responses.response_value IS 'For MC: letter answer (A/B/C/D). For CR: may be NULL';
+COMMENT ON COLUMN responses.is_correct IS 'For MC items only: TRUE if correct. NULL for CR items';
+COMMENT ON COLUMN responses.points_earned IS 'Actual points earned (0 to max_points). For MC: 0 or 1. For CR: 0 to max_points';
 
 -- ============================================================================
 -- STATISTICS TABLE (Cached Psychometric Calculations)
@@ -172,15 +192,21 @@ CREATE INDEX idx_assessments_year ON assessments(assessment_year);
 -- Item indexes
 CREATE INDEX idx_items_assessment ON items(assessment_id);
 CREATE INDEX idx_items_code ON items(assessment_id, item_code);  -- Composite for fast lookups
+CREATE INDEX idx_items_type ON items(assessment_id, item_type);  -- For filtering by item type
 
 -- Student indexes
 CREATE INDEX idx_students_assessment ON students(assessment_id);
 CREATE INDEX idx_students_score ON students(total_score);  -- For percentile calculations
+CREATE INDEX idx_students_school ON students(school);  -- For school-based analysis
+CREATE INDEX idx_students_district ON students(district);  -- For district-based analysis
+CREATE INDEX idx_students_school_type ON students(school_type);  -- For school type analysis
+CREATE INDEX idx_students_gender ON students(gender);  -- For gender-based analysis
 
 -- Response indexes
 CREATE INDEX idx_responses_student ON responses(student_id);
 CREATE INDEX idx_responses_item ON responses(item_id);
 CREATE INDEX idx_responses_correctness ON responses(item_id, is_correct);  -- For item statistics
+CREATE INDEX idx_responses_points ON responses(item_id, points_earned);  -- For weighted scoring statistics
 
 -- Statistics indexes
 CREATE INDEX idx_statistics_assessment ON statistics(assessment_id);

@@ -21,22 +21,33 @@ import {
   MenuItem,
 } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart } from 'recharts';
-import { getScoreDistribution, getGenderAnalysis, getContentDomainAnalysis, getAvailableCountries } from '../services/api';
+import { getScoreDistribution, getGenderAnalysis, getContentDomainAnalysis, getAvailableCountries, getSchoolAnalysis, getDistrictAnalysis, getSchoolTypeAnalysis, getPercentileAnalysis } from '../services/api';
 
-export default function OverviewTab({ assessmentId, statistics, items = [] }) {
+export default function OverviewTab({ assessmentId, statistics, items = [], assessmentMetadata = {} }) {
   const [distribution, setDistribution] = useState([]);
   const [distributionStats, setDistributionStats] = useState(null);
   const [genderData, setGenderData] = useState([]);
   const [domainData, setDomainData] = useState([]);
+  const [schoolData, setSchoolData] = useState([]);
+  const [districtData, setDistrictData] = useState([]);
+  const [schoolTypeData, setSchoolTypeData] = useState([]);
+  const [percentileData, setPercentileData] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState('all');
   const [availableCountries, setAvailableCountries] = useState([]);
   const [countryDistributions, setCountryDistributions] = useState([]);
+
+  // Extract assessment metadata
+  const { totalMaxPoints = 0, isWeighted = false, mcCount = 0, crCount = 0 } = assessmentMetadata;
 
   useEffect(() => {
     const loadData = async () => {
       await fetchAvailableCountries();
       fetchGenderAnalysis();
       fetchContentDomainAnalysis();
+      fetchSchoolAnalysis();
+      fetchDistrictAnalysis();
+      fetchSchoolTypeAnalysis();
+      fetchPercentileAnalysis();
     };
     loadData();
   }, [assessmentId]);
@@ -113,6 +124,42 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
     }
   };
 
+  const fetchSchoolAnalysis = async () => {
+    try {
+      const response = await getSchoolAnalysis(assessmentId);
+      setSchoolData(response.data);
+    } catch (err) {
+      console.error('Failed to load school analysis:', err);
+    }
+  };
+
+  const fetchDistrictAnalysis = async () => {
+    try {
+      const response = await getDistrictAnalysis(assessmentId);
+      setDistrictData(response.data);
+    } catch (err) {
+      console.error('Failed to load district analysis:', err);
+    }
+  };
+
+  const fetchSchoolTypeAnalysis = async () => {
+    try {
+      const response = await getSchoolTypeAnalysis(assessmentId);
+      setSchoolTypeData(response.data);
+    } catch (err) {
+      console.error('Failed to load school type analysis:', err);
+    }
+  };
+
+  const fetchPercentileAnalysis = async () => {
+    try {
+      const response = await getPercentileAnalysis(assessmentId);
+      setPercentileData(response.data);
+    } catch (err) {
+      console.error('Failed to load percentile analysis:', err);
+    }
+  };
+
   const testStats = statistics?.testStatistics || {};
 
   const getAlphaColor = (interpretation) => {
@@ -156,6 +203,18 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
                 <Table size="small">
                   <TableBody>
                     <TableRow>
+                      <TableCell>Assessment Type</TableCell>
+                      <TableCell align="right">
+                        <strong>
+                          {isWeighted ? (
+                            <>Weighted ({mcCount} MC + {crCount} CR = {totalMaxPoints} points)</>
+                          ) : (
+                            <>Unweighted ({items.length} MC items = {items.length} points)</>
+                          )}
+                        </strong>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
                       <TableCell>Number of Students</TableCell>
                       <TableCell align="right">
                         <strong>{testStats.n || 0}</strong>
@@ -164,31 +223,51 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
                     <TableRow>
                       <TableCell>Mean Score</TableCell>
                       <TableCell align="right">
-                        <strong>{testStats.mean?.toFixed(2) || '-'}</strong>
+                        <strong>
+                          {testStats.mean?.toFixed(2) || '-'}
+                          {isWeighted && totalMaxPoints > 0 && testStats.mean && (
+                            <> / {totalMaxPoints} ({((testStats.mean / totalMaxPoints) * 100).toFixed(1)}%)</>
+                          )}
+                        </strong>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Median Score</TableCell>
                       <TableCell align="right">
-                        <strong>{testStats.median?.toFixed(2) || '-'}</strong>
+                        <strong>
+                          {testStats.median?.toFixed(2) || '-'}
+                          {isWeighted && totalMaxPoints > 0 && testStats.median && (
+                            <> / {totalMaxPoints} ({((testStats.median / totalMaxPoints) * 100).toFixed(1)}%)</>
+                          )}
+                        </strong>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Standard Deviation</TableCell>
                       <TableCell align="right">
-                        <strong>{testStats.stdev?.toFixed(2) || '-'}</strong>
+                        <strong>{testStats.stdev?.toFixed(2) || '-'} points</strong>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Minimum Score</TableCell>
                       <TableCell align="right">
-                        <strong>{testStats.min || '-'}</strong>
+                        <strong>
+                          {testStats.min || '-'}
+                          {isWeighted && totalMaxPoints > 0 && testStats.min !== undefined && (
+                            <> / {totalMaxPoints} ({((testStats.min / totalMaxPoints) * 100).toFixed(1)}%)</>
+                          )}
+                        </strong>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Maximum Score</TableCell>
                       <TableCell align="right">
-                        <strong>{testStats.max || '-'}</strong>
+                        <strong>
+                          {testStats.max || '-'}
+                          {isWeighted && totalMaxPoints > 0 && testStats.max && (
+                            <> / {totalMaxPoints} ({((testStats.max / totalMaxPoints) * 100).toFixed(1)}%)</>
+                          )}
+                        </strong>
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -678,25 +757,176 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
           </Grid>
         )}
 
-        {/* Content Domain Performance */}
+        {/* School Performance Analysis */}
+        {schoolData.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Performance by School
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>School</strong></TableCell>
+                        <TableCell align="right"><strong>Count</strong></TableCell>
+                        <TableCell align="right"><strong>Mean Score</strong></TableCell>
+                        <TableCell align="right"><strong>Mean %</strong></TableCell>
+                        <TableCell align="right"><strong>Std Dev</strong></TableCell>
+                        <TableCell align="right"><strong>Min</strong></TableCell>
+                        <TableCell align="right"><strong>Max</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {schoolData.sort((a, b) => b.meanScore - a.meanScore).map((row) => (
+                        <TableRow key={row.school}>
+                          <TableCell>{row.school}</TableCell>
+                          <TableCell align="right">{row.count}</TableCell>
+                          <TableCell align="right">{row.meanScore.toFixed(2)}</TableCell>
+                          <TableCell align="right"><strong>{row.meanPercentage}%</strong></TableCell>
+                          <TableCell align="right">{row.stdDev.toFixed(2)}</TableCell>
+                          <TableCell align="right">{row.minScore.toFixed(1)}</TableCell>
+                          <TableCell align="right">{row.maxScore.toFixed(1)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* District Performance Analysis */}
+        {districtData.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Performance by District
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={8}>
+                    <Box sx={{ width: '100%', height: 300 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={districtData.sort((a, b) => b.meanScore - a.meanScore)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="district" angle={-45} textAnchor="end" height={100} />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="meanScore" fill="#3b82f6" name="Mean Score" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell><strong>District</strong></TableCell>
+                            <TableCell align="right"><strong>Count</strong></TableCell>
+                            <TableCell align="right"><strong>Mean %</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {districtData.sort((a, b) => b.meanScore - a.meanScore).map((row) => (
+                            <TableRow key={row.district}>
+                              <TableCell>{row.district}</TableCell>
+                              <TableCell align="right">{row.count}</TableCell>
+                              <TableCell align="right"><strong>{row.meanPercentage}%</strong></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* School Type Performance Analysis */}
+        {schoolTypeData.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Performance by School Type
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ width: '100%', height: 250 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={schoolTypeData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="schoolType" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="meanScore" fill="#8b5cf6" name="Mean Score" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell><strong>School Type</strong></TableCell>
+                            <TableCell align="right"><strong>Count</strong></TableCell>
+                            <TableCell align="right"><strong>Mean Score</strong></TableCell>
+                            <TableCell align="right"><strong>Mean %</strong></TableCell>
+                            <TableCell align="right"><strong>Std Dev</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {schoolTypeData.sort((a, b) => b.meanScore - a.meanScore).map((row) => (
+                            <TableRow key={row.schoolType}>
+                              <TableCell>{row.schoolType}</TableCell>
+                              <TableCell align="right">{row.count}</TableCell>
+                              <TableCell align="right">{row.meanScore.toFixed(2)}</TableCell>
+                              <TableCell align="right"><strong>{row.meanPercentage}%</strong></TableCell>
+                              <TableCell align="right">{row.stdDev.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Content Domain Performance (Curriculum Outcomes) */}
         {domainData.length > 0 && (
           <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Performance by Content Domain
+                  Performance by Content Domain (Curriculum Outcomes)
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Average student performance across different content areas
+                  Student performance across different content areas. Domains are sorted from weakest to strongest to highlight areas needing attention.
                 </Typography>
                 <Box sx={{ width: '100%', height: 300 }}>
                   <ResponsiveContainer>
-                    <BarChart data={domainData} layout="vertical" margin={{ left: 100 }}>
+                    <BarChart data={domainData} layout="vertical" margin={{ left: 150 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" domain={[0, 100]} label={{ value: '% Correct', position: 'insideBottom', offset: -5 }} />
-                      <YAxis type="category" dataKey="domain" />
+                      <XAxis type="number" domain={[0, 100]} label={{ value: '% Performance', position: 'insideBottom', offset: -5 }} />
+                      <YAxis type="category" dataKey="domain" width={140} />
                       <Tooltip />
-                      <Bar dataKey="averagePerformance" fill="#f59e0b" name="% Correct" />
+                      <Bar
+                        dataKey="averagePerformance"
+                        fill="#f59e0b"
+                        name="% Performance"
+                        label={{ position: 'right', formatter: (value) => `${value.toFixed(1)}%` }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>
@@ -705,8 +935,11 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
                     <TableHead>
                       <TableRow>
                         <TableCell><strong>Content Domain</strong></TableCell>
-                        <TableCell align="right"><strong>Number of Items</strong></TableCell>
-                        <TableCell align="right"><strong>Average Performance</strong></TableCell>
+                        <TableCell align="right"><strong>Items</strong></TableCell>
+                        <TableCell align="right"><strong>Max Points</strong></TableCell>
+                        <TableCell align="right"><strong>Avg Points</strong></TableCell>
+                        <TableCell align="right"><strong>Performance</strong></TableCell>
+                        <TableCell align="center"><strong>Level</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -714,12 +947,162 @@ export default function OverviewTab({ assessmentId, statistics, items = [] }) {
                         <TableRow key={domain.domain}>
                           <TableCell>{domain.domain}</TableCell>
                           <TableCell align="right">{domain.itemCount}</TableCell>
+                          <TableCell align="right">{domain.totalMaxPoints?.toFixed(0) || domain.itemCount}</TableCell>
+                          <TableCell align="right">{domain.averagePoints?.toFixed(2) || '-'}</TableCell>
                           <TableCell align="right"><strong>{domain.averagePerformance.toFixed(1)}%</strong></TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={domain.performanceLevel || 'moderate'}
+                              size="small"
+                              color={
+                                domain.performanceLevel === 'strong' ? 'success' :
+                                domain.performanceLevel === 'weak' ? 'error' : 'warning'
+                              }
+                            />
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    <strong>Performance Levels:</strong> Strong (≥70%), Moderate (50-69%), Weak (&lt;50%)
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Percentile Group Analysis */}
+        {percentileData && percentileData.items && percentileData.items.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Item Performance Across Percentile Groups
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  This analysis shows how each item performs for students of different ability levels (Top 25%, Middle 50%, Bottom 25%).
+                  Good items should show positive discrimination - higher performing students should score better on each item.
+                </Typography>
+
+                {/* Group Summary */}
+                {percentileData.groups && (
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} md={4}>
+                      <Paper sx={{ p: 2, bgcolor: 'success.light' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          <strong>{percentileData.groups.topGroup.label}</strong>
+                        </Typography>
+                        <Typography variant="body2">
+                          Students: {percentileData.groups.topGroup.count}
+                        </Typography>
+                        <Typography variant="body2">
+                          Score Range: {percentileData.groups.topGroup.minScore?.toFixed(1)} - {percentileData.groups.topGroup.maxScore?.toFixed(1)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Mean: {percentileData.groups.topGroup.avgScore?.toFixed(2)}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          <strong>{percentileData.groups.middleGroup.label}</strong>
+                        </Typography>
+                        <Typography variant="body2">
+                          Students: {percentileData.groups.middleGroup.count}
+                        </Typography>
+                        <Typography variant="body2">
+                          Score Range: {percentileData.groups.middleGroup.minScore?.toFixed(1)} - {percentileData.groups.middleGroup.maxScore?.toFixed(1)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Mean: {percentileData.groups.middleGroup.avgScore?.toFixed(2)}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Paper sx={{ p: 2, bgcolor: 'error.light' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          <strong>{percentileData.groups.bottomGroup.label}</strong>
+                        </Typography>
+                        <Typography variant="body2">
+                          Students: {percentileData.groups.bottomGroup.count}
+                        </Typography>
+                        <Typography variant="body2">
+                          Score Range: {percentileData.groups.bottomGroup.minScore?.toFixed(1)} - {percentileData.groups.bottomGroup.maxScore?.toFixed(1)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Mean: {percentileData.groups.bottomGroup.avgScore?.toFixed(2)}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                )}
+
+                {/* Item Performance Table */}
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Item</strong></TableCell>
+                        <TableCell><strong>Type</strong></TableCell>
+                        <TableCell align="right"><strong>Top 25%</strong></TableCell>
+                        <TableCell align="right"><strong>Middle 50%</strong></TableCell>
+                        <TableCell align="right"><strong>Bottom 25%</strong></TableCell>
+                        <TableCell align="right"><strong>Discrimination</strong></TableCell>
+                        <TableCell align="center"><strong>Status</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {percentileData.items.map((item) => (
+                        <TableRow key={item.itemId}>
+                          <TableCell>{item.itemCode}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={item.itemType || 'MC'}
+                              size="small"
+                              color={item.itemType === 'CR' ? 'secondary' : 'primary'}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            {item.topGroup.percentCorrect?.toFixed(1)}%
+                          </TableCell>
+                          <TableCell align="right">
+                            {item.middleGroup.percentCorrect?.toFixed(1)}%
+                          </TableCell>
+                          <TableCell align="right">
+                            {item.bottomGroup.percentCorrect?.toFixed(1)}%
+                          </TableCell>
+                          <TableCell align="right">
+                            <strong>{item.discrimination?.toFixed(3)}</strong>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={item.discriminationStatus}
+                              size="small"
+                              color={
+                                item.discriminationStatus === 'good' ? 'success' :
+                                item.discriminationStatus === 'fair' ? 'warning' : 'error'
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    <strong>Interpretation:</strong> Percentages show the proportion of students in each group who answered correctly.
+                    Discrimination is calculated as (Top 25% difficulty - Bottom 25% difficulty).
+                    Good discrimination (≥0.30) indicates the item effectively differentiates between high and low performers.
+                  </Typography>
+                </Box>
               </CardContent>
             </Card>
           </Grid>

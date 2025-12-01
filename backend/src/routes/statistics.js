@@ -38,9 +38,9 @@ router.get('/:assessmentId', async (req, res) => {
       testStats.kurtosis_interpretation = stats.interpretKurtosis(testStats.kurtosis);
     }
     
-    // Get item-level statistics
+    // Get item-level statistics (including max_points and item_type for weighted scoring)
     const itemStatsResult = await query(
-      `SELECT i.id, i.item_code, i.correct_answer,
+      `SELECT i.id, i.item_code, i.correct_answer, i.max_points, i.item_type,
               s.stat_type, s.stat_value
        FROM items i
        LEFT JOIN statistics s ON s.item_id = i.id
@@ -48,7 +48,7 @@ router.get('/:assessmentId', async (req, res) => {
        ORDER BY i.item_code, s.stat_type`,
       [assessmentId]
     );
-    
+
     // Group by item
     const itemsMap = {};
     itemStatsResult.rows.forEach(row => {
@@ -57,6 +57,8 @@ router.get('/:assessmentId', async (req, res) => {
           id: row.id,
           item_code: row.item_code,
           correct_answer: row.correct_answer,
+          max_points: parseInt(row.max_points) || 1,
+          item_type: row.item_type || 'MC',
           statistics: {}
         };
       }
@@ -83,9 +85,22 @@ router.get('/:assessmentId', async (req, res) => {
       };
     });
     
+    // Calculate assessment metadata (total points, item counts)
+    const totalMaxPoints = items.reduce((sum, item) => sum + item.max_points, 0);
+    const mcCount = items.filter(item => item.item_type === 'MC').length;
+    const crCount = items.filter(item => item.item_type === 'CR').length;
+    const isWeighted = crCount > 0 || items.some(item => item.max_points > 1);
+
     res.json({
       testStatistics: testStats,
-      itemStatistics: items
+      itemStatistics: items,
+      assessmentMetadata: {
+        totalItems: items.length,
+        totalMaxPoints,
+        mcCount,
+        crCount,
+        isWeighted
+      }
     });
     
   } catch (error) {
@@ -386,12 +401,14 @@ router.get('/:assessmentId/gender-analysis', async (req, res) => {
   try {
     const { assessmentId } = req.params;
 
-    // Get assessment item count to calculate percentages
-    const assessmentResult = await query(
-      `SELECT item_count FROM assessments WHERE id = $1`,
+    // Get total max points for weighted scoring (sum of all item max_points)
+    const maxScoreResult = await query(
+      `SELECT COALESCE(SUM(max_points), COUNT(*)) as total_max_points
+       FROM items
+       WHERE assessment_id = $1`,
       [assessmentId]
     );
-    const maxScore = assessmentResult.rows[0]?.item_count || 100;
+    const maxScore = parseFloat(maxScoreResult.rows[0]?.total_max_points) || 100;
 
     // Get performance by gender
     const result = await query(
@@ -414,8 +431,10 @@ router.get('/:assessmentId/gender-analysis', async (req, res) => {
       gender: row.gender,
       count: parseInt(row.count),
       meanScore: parseFloat(row.mean_score),
+      meanPercentage: ((parseFloat(row.mean_score) / maxScore) * 100).toFixed(1),
       minScore: parseFloat(row.min_score),
       maxScore: parseFloat(row.max_score),
+      totalMaxScore: maxScore,
       stdDev: parseFloat(row.std_dev) || 0,
       aboveMPL: parseInt(row.above_mpl),
       mplPercentage: ((parseInt(row.above_mpl) / parseInt(row.count)) * 100).toFixed(1)
@@ -431,17 +450,20 @@ router.get('/:assessmentId/gender-analysis', async (req, res) => {
 
 /**
  * GET /api/statistics/:assessmentId/content-domain-analysis
- * Get overall performance by content domain
+ * Get overall performance by content domain (curriculum outcomes)
+ * Updated to handle weighted scoring using points_earned
  */
 router.get('/:assessmentId/content-domain-analysis', async (req, res) => {
   try {
     const { assessmentId } = req.params;
 
-    // Get items grouped by content domain
+    // Get items grouped by content domain with max points for weighted scoring
     const itemsResult = await query(
-      `SELECT content_domain, COUNT(*) as item_count
+      `SELECT content_domain,
+              COUNT(*) as item_count,
+              SUM(max_points) as total_max_points
        FROM items
-       WHERE assessment_id = $1 AND content_domain IS NOT NULL
+       WHERE assessment_id = $1 AND content_domain IS NOT NULL AND content_domain != ''
        GROUP BY content_domain
        ORDER BY content_domain`,
       [assessmentId]
@@ -451,13 +473,17 @@ router.get('/:assessmentId/content-domain-analysis', async (req, res) => {
       return res.json([]);
     }
 
-    // For each content domain, calculate average performance
+    // For each content domain, calculate average performance using points_earned
     const domainAnalysis = await Promise.all(
       itemsResult.rows.map(async (domain) => {
+        // Get performance using points_earned for weighted scoring
         const performanceResult = await query(
           `SELECT
-            AVG(CASE WHEN r.is_correct THEN 1.0 ELSE 0.0 END) as avg_performance,
-            COUNT(DISTINCT s.id) as student_count
+            COUNT(DISTINCT s.id) as student_count,
+            AVG(r.points_earned) as avg_points,
+            AVG(r.points_earned / i.max_points) as avg_performance,
+            SUM(r.points_earned) as total_points_earned,
+            SUM(i.max_points) as total_possible_points
            FROM items i
            JOIN responses r ON r.item_id = i.id
            JOIN students s ON s.id = r.student_id
@@ -465,20 +491,195 @@ router.get('/:assessmentId/content-domain-analysis', async (req, res) => {
           [assessmentId, domain.content_domain]
         );
 
+        const result = performanceResult.rows[0];
+        const totalMaxPoints = parseFloat(domain.total_max_points) || 1;
+        const avgPerformance = parseFloat(result.avg_performance) || 0;
+        const avgPoints = parseFloat(result.avg_points) || 0;
+
+        // Calculate overall domain score
+        const totalEarned = parseFloat(result.total_points_earned) || 0;
+        const totalPossible = parseFloat(result.total_possible_points) || 1;
+        const overallPercentage = (totalEarned / totalPossible) * 100;
+
         return {
           domain: domain.content_domain,
           itemCount: parseInt(domain.item_count),
-          averagePerformance: parseFloat(performanceResult.rows[0].avg_performance) * 100,
-          studentCount: parseInt(performanceResult.rows[0].student_count)
+          totalMaxPoints: parseFloat(totalMaxPoints),
+          averagePoints: parseFloat(avgPoints.toFixed(2)),
+          averagePerformance: parseFloat((avgPerformance * 100).toFixed(1)),
+          overallPercentage: parseFloat(overallPercentage.toFixed(1)),
+          studentCount: parseInt(result.student_count),
+          // Interpretation based on performance
+          performanceLevel: avgPerformance >= 0.7 ? 'strong' :
+                           avgPerformance >= 0.5 ? 'moderate' : 'weak'
         };
       })
     );
+
+    // Sort by performance (weakest first to highlight areas needing attention)
+    domainAnalysis.sort((a, b) => a.averagePerformance - b.averagePerformance);
 
     res.json(domainAnalysis);
 
   } catch (error) {
     console.error('Error fetching content domain analysis:', error);
     res.status(500).json({ error: 'Failed to fetch content domain analysis' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/school-analysis
+ * Get performance statistics disaggregated by school
+ */
+router.get('/:assessmentId/school-analysis', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    // Get total max points for weighted scoring
+    const maxScoreResult = await query(
+      `SELECT COALESCE(SUM(max_points), COUNT(*)) as total_max_points
+       FROM items
+       WHERE assessment_id = $1`,
+      [assessmentId]
+    );
+    const maxScore = parseFloat(maxScoreResult.rows[0]?.total_max_points) || 100;
+
+    // Get performance by school
+    const result = await query(
+      `SELECT
+        school,
+        COUNT(*) as count,
+        AVG(total_score) as mean_score,
+        MIN(total_score) as min_score,
+        MAX(total_score) as max_score,
+        STDDEV(total_score) as std_dev
+       FROM students
+       WHERE assessment_id = $1 AND school IS NOT NULL AND school != ''
+       GROUP BY school
+       ORDER BY school`,
+      [assessmentId]
+    );
+
+    const schoolStats = result.rows.map(row => ({
+      school: row.school,
+      count: parseInt(row.count),
+      meanScore: parseFloat(row.mean_score),
+      meanPercentage: ((parseFloat(row.mean_score) / maxScore) * 100).toFixed(1),
+      minScore: parseFloat(row.min_score),
+      maxScore: parseFloat(row.max_score),
+      totalMaxScore: maxScore,
+      stdDev: parseFloat(row.std_dev) || 0
+    }));
+
+    res.json(schoolStats);
+
+  } catch (error) {
+    console.error('Error fetching school analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch school analysis' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/district-analysis
+ * Get performance statistics disaggregated by district
+ */
+router.get('/:assessmentId/district-analysis', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    // Get total max points for weighted scoring
+    const maxScoreResult = await query(
+      `SELECT COALESCE(SUM(max_points), COUNT(*)) as total_max_points
+       FROM items
+       WHERE assessment_id = $1`,
+      [assessmentId]
+    );
+    const maxScore = parseFloat(maxScoreResult.rows[0]?.total_max_points) || 100;
+
+    // Get performance by district
+    const result = await query(
+      `SELECT
+        district,
+        COUNT(*) as count,
+        AVG(total_score) as mean_score,
+        MIN(total_score) as min_score,
+        MAX(total_score) as max_score,
+        STDDEV(total_score) as std_dev
+       FROM students
+       WHERE assessment_id = $1 AND district IS NOT NULL AND district != ''
+       GROUP BY district
+       ORDER BY district`,
+      [assessmentId]
+    );
+
+    const districtStats = result.rows.map(row => ({
+      district: row.district,
+      count: parseInt(row.count),
+      meanScore: parseFloat(row.mean_score),
+      meanPercentage: ((parseFloat(row.mean_score) / maxScore) * 100).toFixed(1),
+      minScore: parseFloat(row.min_score),
+      maxScore: parseFloat(row.max_score),
+      totalMaxScore: maxScore,
+      stdDev: parseFloat(row.std_dev) || 0
+    }));
+
+    res.json(districtStats);
+
+  } catch (error) {
+    console.error('Error fetching district analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch district analysis' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/school-type-analysis
+ * Get performance statistics disaggregated by school type
+ */
+router.get('/:assessmentId/school-type-analysis', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    // Get total max points for weighted scoring
+    const maxScoreResult = await query(
+      `SELECT COALESCE(SUM(max_points), COUNT(*)) as total_max_points
+       FROM items
+       WHERE assessment_id = $1`,
+      [assessmentId]
+    );
+    const maxScore = parseFloat(maxScoreResult.rows[0]?.total_max_points) || 100;
+
+    // Get performance by school type
+    const result = await query(
+      `SELECT
+        school_type,
+        COUNT(*) as count,
+        AVG(total_score) as mean_score,
+        MIN(total_score) as min_score,
+        MAX(total_score) as max_score,
+        STDDEV(total_score) as std_dev
+       FROM students
+       WHERE assessment_id = $1 AND school_type IS NOT NULL AND school_type != ''
+       GROUP BY school_type
+       ORDER BY school_type`,
+      [assessmentId]
+    );
+
+    const schoolTypeStats = result.rows.map(row => ({
+      schoolType: row.school_type,
+      count: parseInt(row.count),
+      meanScore: parseFloat(row.mean_score),
+      meanPercentage: ((parseFloat(row.mean_score) / maxScore) * 100).toFixed(1),
+      minScore: parseFloat(row.min_score),
+      maxScore: parseFloat(row.max_score),
+      totalMaxScore: maxScore,
+      stdDev: parseFloat(row.std_dev) || 0
+    }));
+
+    res.json(schoolTypeStats);
+
+  } catch (error) {
+    console.error('Error fetching school type analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch school type analysis' });
   }
 });
 
@@ -504,6 +705,161 @@ router.get('/:assessmentId/countries', async (req, res) => {
   } catch (error) {
     console.error('Error fetching countries:', error);
     res.status(500).json({ error: 'Failed to fetch countries' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/percentile-analysis
+ * Get item performance across percentile groups (top 25%, middle 50%, bottom 25%)
+ * This shows how items perform for students of different ability levels
+ */
+router.get('/:assessmentId/percentile-analysis', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    // Get all students with their scores
+    const studentsResult = await query(
+      `SELECT id, student_code, total_score
+       FROM students
+       WHERE assessment_id = $1
+       ORDER BY total_score DESC`,
+      [assessmentId]
+    );
+
+    const students = studentsResult.rows;
+    const totalStudents = students.length;
+
+    if (totalStudents === 0) {
+      return res.json({ groups: [], items: [] });
+    }
+
+    // Calculate percentile cutoffs
+    const top25Index = Math.floor(totalStudents * 0.25);
+    const bottom75Index = Math.floor(totalStudents * 0.75);
+
+    // Divide students into groups
+    const topGroup = students.slice(0, top25Index); // Top 25%
+    const middleGroup = students.slice(top25Index, bottom75Index); // Middle 50%
+    const bottomGroup = students.slice(bottom75Index); // Bottom 25%
+
+    // Get all items with max_points for weighted scoring
+    const itemsResult = await query(
+      `SELECT id, item_code, correct_answer, max_points, item_type, content_domain
+       FROM items
+       WHERE assessment_id = $1
+       ORDER BY item_code`,
+      [assessmentId]
+    );
+
+    const items = itemsResult.rows;
+
+    // Get all responses
+    const responsesResult = await query(
+      `SELECT student_id, item_id, response_value, is_correct, points_earned
+       FROM responses r
+       WHERE EXISTS (
+         SELECT 1 FROM students s
+         WHERE s.id = r.student_id AND s.assessment_id = $1
+       )`,
+      [assessmentId]
+    );
+
+    const responses = responsesResult.rows;
+
+    // Calculate performance for each item across percentile groups
+    const itemAnalysis = items.map(item => {
+      const itemResponses = responses.filter(r => r.item_id === item.id);
+      const maxPoints = parseFloat(item.max_points) || 1;
+
+      // Calculate for each group
+      const calculateGroupStats = (groupStudents) => {
+        const groupResponses = itemResponses.filter(r =>
+          groupStudents.some(s => s.id === r.student_id)
+        );
+
+        if (groupResponses.length === 0) {
+          return {
+            count: 0,
+            avgPoints: 0,
+            difficulty: 0,
+            percentCorrect: 0
+          };
+        }
+
+        const totalPoints = groupResponses.reduce((sum, r) =>
+          sum + (parseFloat(r.points_earned) || 0), 0
+        );
+        const avgPoints = totalPoints / groupResponses.length;
+        const difficulty = avgPoints / maxPoints;
+        const correctCount = groupResponses.filter(r => r.is_correct).length;
+        const percentCorrect = (correctCount / groupResponses.length) * 100;
+
+        return {
+          count: groupResponses.length,
+          avgPoints: parseFloat(avgPoints.toFixed(2)),
+          difficulty: parseFloat(difficulty.toFixed(3)),
+          percentCorrect: parseFloat(percentCorrect.toFixed(1))
+        };
+      };
+
+      const topStats = calculateGroupStats(topGroup);
+      const middleStats = calculateGroupStats(middleGroup);
+      const bottomStats = calculateGroupStats(bottomGroup);
+
+      // Calculate discrimination between top and bottom groups
+      const discrimination = topStats.difficulty - bottomStats.difficulty;
+
+      return {
+        itemId: item.id,
+        itemCode: item.item_code,
+        itemType: item.item_type,
+        maxPoints: parseFloat(item.max_points),
+        contentDomain: item.content_domain,
+        topGroup: topStats,
+        middleGroup: middleStats,
+        bottomGroup: bottomStats,
+        discrimination: parseFloat(discrimination.toFixed(3)),
+        discriminationStatus: discrimination >= 0.3 ? 'good' : discrimination >= 0.2 ? 'fair' : 'poor'
+      };
+    });
+
+    // Calculate group summaries
+    const groupSummary = {
+      topGroup: {
+        label: 'Top 25%',
+        count: topGroup.length,
+        minScore: topGroup.length > 0 ? parseFloat(topGroup[topGroup.length - 1].total_score) : 0,
+        maxScore: topGroup.length > 0 ? parseFloat(topGroup[0].total_score) : 0,
+        avgScore: topGroup.length > 0 ?
+          topGroup.reduce((sum, s) => sum + parseFloat(s.total_score), 0) / topGroup.length : 0
+      },
+      middleGroup: {
+        label: 'Middle 50%',
+        count: middleGroup.length,
+        minScore: middleGroup.length > 0 ? parseFloat(middleGroup[middleGroup.length - 1].total_score) : 0,
+        maxScore: middleGroup.length > 0 ? parseFloat(middleGroup[0].total_score) : 0,
+        avgScore: middleGroup.length > 0 ?
+          middleGroup.reduce((sum, s) => sum + parseFloat(s.total_score), 0) / middleGroup.length : 0
+      },
+      bottomGroup: {
+        label: 'Bottom 25%',
+        count: bottomGroup.length,
+        minScore: bottomGroup.length > 0 ? parseFloat(bottomGroup[bottomGroup.length - 1].total_score) : 0,
+        maxScore: bottomGroup.length > 0 ? parseFloat(bottomGroup[0].total_score) : 0,
+        avgScore: bottomGroup.length > 0 ?
+          bottomGroup.reduce((sum, s) => sum + parseFloat(s.total_score), 0) / bottomGroup.length : 0
+      }
+    };
+
+    res.json({
+      groups: groupSummary,
+      items: itemAnalysis,
+      totalStudents
+    });
+
+  } catch (error) {
+    console.error('Error fetching percentile analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch percentile analysis' });
   }
 });
 

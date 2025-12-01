@@ -75,6 +75,8 @@ export function parseOERAFile(filePath, mimeType) {
   const questionColumns = [];
   const seenCodes = {}; // Track item codes to detect duplicates
 
+  const itemsMetadata = {}; // Store item type and max points
+
   for (let i = 0; i < headerRow.length; i++) {
     const header = String(headerRow[i]).trim();
     // Match Q followed by number (Q1, Q2) or Q followed by number and letter (Q1a, Q1b)
@@ -92,13 +94,33 @@ export function parseOERAFile(filePath, mimeType) {
           seenCodes[header] = 1;
         }
 
+        // Detect item type and max points based on KEY row value
+        const isNumeric = answer.match(/^\d+(\.\d+)?$/);
+        const itemType = isNumeric ? 'CR' : 'MC';
+        const maxPoints = isNumeric ? parseFloat(answer) : 1;
+
         answerKey[uniqueCode] = answer.toUpperCase(); // Store uppercase for consistency
         questionColumns.push({ index: i, code: uniqueCode });
+
+        // Store metadata for this item
+        itemsMetadata[uniqueCode] = {
+          itemType,
+          maxPoints,
+          correctAnswer: itemType === 'MC' ? answer.toUpperCase() : null
+        };
       }
     }
   }
 
+  // Calculate assessment scoring summary
+  const mcCount = Object.values(itemsMetadata).filter(i => i.itemType === 'MC').length;
+  const crCount = Object.values(itemsMetadata).filter(i => i.itemType === 'CR').length;
+  const totalPoints = Object.values(itemsMetadata).reduce((sum, item) => sum + item.maxPoints, 0);
+
   console.log(`Found ${questionColumns.length} questions with answer key`);
+  console.log(`  - MC items: ${mcCount} (${mcCount} points)`);
+  console.log(`  - CR items: ${crCount} (${totalPoints - mcCount} points)`);
+  console.log(`  - Total possible points: ${totalPoints}`);
   console.log(`Answer key sample:`, Object.entries(answerKey).slice(0, 5));
 
   // Parse student data (rows after header)
@@ -182,9 +204,14 @@ export function parseOERAFile(filePath, mimeType) {
     students,
     answerKey,
     items: questionColumns.map(q => q.code),
+    itemsMetadata, // NEW: Contains itemType, maxPoints, correctAnswer for each item
     metadata: {
       totalStudents: students.length,
       totalItems: questionColumns.length,
+      totalPoints, // NEW: Total possible points (sum of all max_points)
+      mcCount, // NEW: Number of MC items
+      crCount, // NEW: Number of CR items
+      isWeighted: crCount > 0 || mcCount !== questionColumns.length, // NEW: True if assessment has weighted items
       multipleResponseCount
     }
   };
@@ -197,41 +224,79 @@ export function parseOERAFile(filePath, mimeType) {
  *
  * @param {string} response - Student response
  * @param {string} correctAnswer - Correct answer from key (letter or number)
- * @returns {Object} { isCorrect, isMultiple, response }
+ * @param {Object} itemMetadata - Item metadata with itemType and maxPoints
+ * @returns {Object} { isCorrect, isMultiple, response, pointsEarned, maxPoints }
  */
-export function scoreResponse(response, correctAnswer) {
+export function scoreResponse(response, correctAnswer, itemMetadata = null) {
+  // Determine item type and max points
+  const isConstructedResponse = correctAnswer.match(/^\d+(\.\d+)?$/);
+  const maxPoints = itemMetadata ? itemMetadata.maxPoints : (isConstructedResponse ? parseFloat(correctAnswer) : 1);
+  const itemType = itemMetadata ? itemMetadata.itemType : (isConstructedResponse ? 'CR' : 'MC');
+
   if (!response || response === '') {
-    return { isCorrect: false, isMultiple: false, response: '' };
+    return {
+      isCorrect: false,
+      isMultiple: false,
+      response: '',
+      pointsEarned: 0,
+      maxPoints,
+      itemType
+    };
   }
 
-  // Determine if this is a constructed response (numeric) or selected response (letter)
-  const isConstructedResponse = correctAnswer.match(/^\d+(\.\d+)?$/);
-
-  if (isConstructedResponse) {
-    // Constructed response: Compare numeric values
-    // Student gets full credit if their score equals the maximum points
+  if (itemType === 'CR') {
+    // Constructed response: Student's response IS the points they earned
     const studentScore = parseFloat(response);
-    const maxPoints = parseFloat(correctAnswer);
 
     // Check if response is a valid number
     if (isNaN(studentScore)) {
-      return { isCorrect: false, isMultiple: false, response };
+      return {
+        isCorrect: false,
+        isMultiple: false,
+        response,
+        pointsEarned: 0,
+        maxPoints,
+        itemType
+      };
     }
 
+    // For CR items, isCorrect means they got full points
     const isCorrect = studentScore === maxPoints;
-    return { isCorrect, isMultiple: false, response };
+    const pointsEarned = Math.min(studentScore, maxPoints); // Cap at max points
+
+    return {
+      isCorrect,
+      isMultiple: false,
+      response,
+      pointsEarned,
+      maxPoints,
+      itemType
+    };
   } else {
-    // Selected response: Check for multiple responses and match letters
-    // Check if multiple responses (contains space or multiple letters)
+    // Selected response (MC): Check for multiple responses and match letters
     const hasMultiple = response.includes(' ') || response.length > 1;
 
     if (hasMultiple) {
       // Multiple responses are marked as incorrect
-      return { isCorrect: false, isMultiple: true, response };
+      return {
+        isCorrect: false,
+        isMultiple: true,
+        response,
+        pointsEarned: 0,
+        maxPoints: 1,
+        itemType: 'MC'
+      };
     }
 
     // Single response - check if correct
     const isCorrect = response === correctAnswer;
-    return { isCorrect, isMultiple: false, response };
+    return {
+      isCorrect,
+      isMultiple: false,
+      response,
+      pointsEarned: isCorrect ? 1 : 0,
+      maxPoints: 1,
+      itemType: 'MC'
+    };
   }
 }

@@ -126,8 +126,8 @@ export async function splitRegionalAssessment(regionalAssessmentId, regionalAsse
 
         // Copy items FIRST (before responses, since responses need to join with items)
         await query(
-          `INSERT INTO items (assessment_id, item_code, content_domain, cognitive_level, correct_answer)
-           SELECT $1, item_code, content_domain, cognitive_level, correct_answer
+          `INSERT INTO items (assessment_id, item_code, content_domain, cognitive_level, correct_answer, max_points, item_type)
+           SELECT $1, item_code, content_domain, cognitive_level, correct_answer, max_points, item_type
            FROM items
            WHERE assessment_id = $2
            ON CONFLICT (assessment_id, item_code) DO NOTHING`,
@@ -138,8 +138,8 @@ export async function splitRegionalAssessment(regionalAssessmentId, regionalAsse
 
         // Copy students to new assessment
         await query(
-          `INSERT INTO students (assessment_id, student_code, gender, total_score, country)
-           SELECT $1, student_code, gender, total_score, country
+          `INSERT INTO students (assessment_id, student_code, gender, total_score, country, school, district, school_type)
+           SELECT $1, student_code, gender, total_score, country, school, district, school_type
            FROM students
            WHERE assessment_id = $2 AND country = ANY($3::text[])`,
           [countryAssessmentId, regionalAssessmentId, relevantCodes]
@@ -149,8 +149,8 @@ export async function splitRegionalAssessment(regionalAssessmentId, regionalAsse
 
         // Copy responses for these students (map item_id by item_code)
         await query(
-          `INSERT INTO responses (student_id, item_id, response_value, is_correct)
-           SELECT s_new.id, i_new.id, r.response_value, r.is_correct
+          `INSERT INTO responses (student_id, item_id, response_value, is_correct, points_earned)
+           SELECT s_new.id, i_new.id, r.response_value, r.is_correct, r.points_earned
            FROM responses r
            JOIN students s_old ON r.student_id = s_old.id
            JOIN students s_new ON s_new.student_code = s_old.student_code

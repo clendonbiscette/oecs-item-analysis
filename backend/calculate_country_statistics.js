@@ -11,13 +11,14 @@ async function calculateStatistics(assessmentId) {
     // Delete existing statistics
     await query('DELETE FROM statistics WHERE assessment_id = $1', [assessmentId]);
 
-    // Get all students with responses
+    // Get all students with responses (including points_earned for weighted scoring)
     const studentsResult = await query(
       `SELECT s.*,
               json_agg(json_build_object(
                 'item_id', r.item_id,
                 'response_value', r.response_value,
-                'is_correct', r.is_correct
+                'is_correct', r.is_correct,
+                'points_earned', r.points_earned
               )) as responses
        FROM students s
        LEFT JOIN responses r ON r.student_id = s.id
@@ -34,20 +35,20 @@ async function calculateStatistics(assessmentId) {
     // Calculate test-level statistics
     const descriptive = stats.calculateDescriptiveStats(totalScores);
 
-    // Calculate item score matrix for Cronbach's alpha
+    // Calculate item score matrix for Cronbach's alpha (including max_points for weighted scoring)
     const itemsResult = await query(
-      'SELECT id, item_code FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT id, item_code, max_points, item_type FROM items WHERE assessment_id = $1 ORDER BY item_code',
       [assessmentId]
     );
     const items = itemsResult.rows;
 
     console.log(`  Found ${items.length} items`);
 
-    // Build item score matrix
+    // Build item score matrix using points_earned (works for both MC and CR items)
     const itemScoresMatrix = students.map(student => {
       return items.map(item => {
         const response = student.responses.find(r => r.item_id === item.id);
-        return response && response.is_correct ? 1 : 0;
+        return response && response.points_earned !== null ? parseFloat(response.points_earned) : 0;
       });
     });
 
@@ -83,7 +84,8 @@ async function calculateStatistics(assessmentId) {
     }
 
     // Calculate and store performance levels
-    const maxScore = items.length;
+    // For weighted assessments: sum of all max_points. For unweighted: items.length
+    const maxScore = items.reduce((sum, item) => sum + (parseInt(item.max_points) || 1), 0);
     const performanceLevels = stats.calculatePerformanceLevels(totalScores, maxScore);
 
     if (performanceLevels) {

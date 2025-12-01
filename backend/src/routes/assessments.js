@@ -175,7 +175,7 @@ router.post('/upload/validate', upload.single('file'), async (req, res) => {
       });
     }
 
-    const { students, answerKey, items, metadata } = parsed;
+    const { students, answerKey, items, itemsMetadata, metadata } = parsed;
 
     // Validation
     const validation = {
@@ -276,7 +276,7 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
 
     // Parse file using OERA-specific parser
     const parsed = parseOERAFile(req.file.path, req.file.mimetype);
-    const { students, answerKey, items } = parsed;
+    const { students, answerKey, items, itemsMetadata } = parsed;
 
     await client.query('BEGIN');
 
@@ -315,20 +315,28 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
     // =========================================================================
     const itemIds = {};
     if (items.length > 0) {
-      // Build batch insert query: INSERT INTO items VALUES ($1,$2,$3), ($4,$5,$6), ...
+      // Build batch insert query: INSERT INTO items VALUES ($1,$2,$3,$4,$5), ...
       const itemValues = [];
       const itemParams = [];
       let paramIndex = 1;
 
       for (const itemCode of items) {
         const correctAnswer = answerKey[itemCode] || null;
-        itemValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`);
-        itemParams.push(assessmentId, itemCode, correctAnswer);
-        paramIndex += 3;
+        const metadata = itemsMetadata[itemCode] || { itemType: 'MC', maxPoints: 1, correctAnswer };
+
+        itemValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
+        itemParams.push(
+          assessmentId,
+          itemCode,
+          metadata.correctAnswer, // NULL for CR items
+          metadata.maxPoints,
+          metadata.itemType
+        );
+        paramIndex += 5;
       }
 
       const itemResult = await client.query(
-        `INSERT INTO items (assessment_id, item_code, correct_answer)
+        `INSERT INTO items (assessment_id, item_code, correct_answer, max_points, item_type)
          VALUES ${itemValues.join(', ')}
          RETURNING id, item_code`,
         itemParams
@@ -349,14 +357,15 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
     let skippedDuplicates = 0;
 
     if (students.length > 0) {
-      // Pre-calculate scores for all students
+      // Pre-calculate scores for all students (using weighted scoring)
       const studentsWithScores = students.map(student => {
         let totalScore = 0;
         for (const itemCode of items) {
           const responseValue = student.responses[itemCode] || '';
           const correctAnswer = answerKey[itemCode];
-          const { isCorrect } = scoreResponse(responseValue, correctAnswer);
-          if (isCorrect) totalScore++;
+          const metadata = itemsMetadata[itemCode];
+          const { pointsEarned } = scoreResponse(responseValue, correctAnswer, metadata);
+          totalScore += pointsEarned;
         }
         return { ...student, totalScore };
       });
@@ -420,7 +429,7 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
 
         // Re-insert items since we rolled back
         const itemResult = await client.query(
-          `INSERT INTO items (assessment_id, item_code, correct_answer)
+          `INSERT INTO items (assessment_id, item_code, correct_answer, max_points, item_type)
            VALUES ${itemValues.join(', ')}
            RETURNING id, item_code`,
           itemParams
@@ -478,9 +487,10 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
         for (const itemCode of items) {
           const responseValue = student.responses[itemCode] || '';
           const correctAnswer = answerKey[itemCode];
-          const { isCorrect } = scoreResponse(responseValue, correctAnswer);
+          const metadata = itemsMetadata[itemCode];
+          const { isCorrect, pointsEarned } = scoreResponse(responseValue, correctAnswer, metadata);
 
-          allResponseData.push([studentDbId, itemIds[itemCode], responseValue, isCorrect]);
+          allResponseData.push([studentDbId, itemIds[itemCode], responseValue, isCorrect, pointsEarned]);
           responseCount++;
         }
       }
@@ -499,13 +509,13 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
           let paramIndex = 1;
 
           for (const data of chunkData) {
-            chunkValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
+            chunkValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
             chunkParams.push(...data);
-            paramIndex += 4;
+            paramIndex += 5;
           }
 
           await client.query(
-            `INSERT INTO responses (student_id, item_id, response_value, is_correct)
+            `INSERT INTO responses (student_id, item_id, response_value, is_correct, points_earned)
              VALUES ${chunkValues.join(', ')}`,
             chunkParams
           );
@@ -653,13 +663,14 @@ router.post('/:id/split', canModify, enforceCountryAccess, async (req, res) => {
  */
 async function calculateStatistics(assessmentId) {
   try {
-    // Get all students with responses
+    // Get all students with responses (including points_earned for weighted scoring)
     const studentsResult = await query(
-      `SELECT s.*, 
+      `SELECT s.*,
               json_agg(json_build_object(
                 'item_id', r.item_id,
                 'response_value', r.response_value,
-                'is_correct', r.is_correct
+                'is_correct', r.is_correct,
+                'points_earned', r.points_earned
               )) as responses
        FROM students s
        LEFT JOIN responses r ON r.student_id = s.id
@@ -674,18 +685,18 @@ async function calculateStatistics(assessmentId) {
     // Calculate test-level statistics
     const descriptive = stats.calculateDescriptiveStats(totalScores);
     
-    // Calculate item score matrix for Cronbach's alpha
+    // Calculate item score matrix for Cronbach's alpha (including max_points for weighted scoring)
     const itemsResult = await query(
-      'SELECT id, item_code FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT id, item_code, max_points, item_type FROM items WHERE assessment_id = $1 ORDER BY item_code',
       [assessmentId]
     );
     const items = itemsResult.rows;
-    
-    // Build item score matrix
+
+    // Build item score matrix using points_earned (works for both MC and CR items)
     const itemScoresMatrix = students.map(student => {
       return items.map(item => {
         const response = student.responses.find(r => r.item_id === item.id);
-        return response && response.is_correct ? 1 : 0;
+        return response && response.points_earned !== null ? parseFloat(response.points_earned) : 0;
       });
     });
     
@@ -721,7 +732,8 @@ async function calculateStatistics(assessmentId) {
     }
 
     // Calculate and add performance levels
-    const maxScore = items.length; // Total number of items
+    // For weighted assessments: sum of all max_points. For unweighted: items.length
+    const maxScore = items.reduce((sum, item) => sum + (parseInt(item.max_points) || 1), 0);
     const performanceLevels = stats.calculatePerformanceLevels(totalScores, maxScore);
 
     if (performanceLevels) {
@@ -737,9 +749,10 @@ async function calculateStatistics(assessmentId) {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const itemColumn = itemScoresMatrix.map(row => row[i]);
+      const itemMaxPoints = parseInt(item.max_points) || 1;
 
-      const difficulty = stats.calculateDifficulty(students, item.id);
-      const discrimination = stats.calculateDiscrimination(students, item.id);
+      const difficulty = stats.calculateDifficulty(students, item.id, itemMaxPoints);
+      const discrimination = stats.calculateDiscrimination(students, item.id, itemMaxPoints);
       const pointBiserial = stats.calculatePointBiserial(itemColumn, totalScores);
 
       // Add item statistics to batch

@@ -27,9 +27,10 @@ export function calculateDescriptiveStats(scores) {
 /**
  * Calculate item difficulty (p-value)
  * IMPORTANT: Uses upper/lower 27% groups ONLY to match Excel formula
- * Excel formula: (upperCorrect + lowerCorrect) / (groupSize * 2)
+ * For MC items: (upperCorrect + lowerCorrect) / (groupSize * 2)
+ * For weighted items: (avgUpperPoints + avgLowerPoints) / (2 * maxPoints)
  */
-export function calculateDifficulty(students, itemId) {
+export function calculateDifficulty(students, itemId, maxPoints = 1) {
   if (!students || students.length < 10) return null;
 
   // Sort students by total score (descending)
@@ -40,19 +41,37 @@ export function calculateDifficulty(students, itemId) {
   const upperGroup = sorted.slice(0, groupSize);
   const lowerGroup = sorted.slice(-groupSize);
 
-  // Count correct responses in each group
-  const upperCorrect = upperGroup.filter(s => {
-    const response = s.responses?.find(r => r.item_id === itemId);
-    return response && response.is_correct;
-  }).length;
+  // Calculate average points earned in each group
+  let upperSum = 0;
+  let upperCount = 0;
+  let lowerSum = 0;
+  let lowerCount = 0;
 
-  const lowerCorrect = lowerGroup.filter(s => {
+  upperGroup.forEach(s => {
     const response = s.responses?.find(r => r.item_id === itemId);
-    return response && response.is_correct;
-  }).length;
+    if (response && response.points_earned !== null && response.points_earned !== undefined) {
+      upperSum += parseFloat(response.points_earned);
+      upperCount++;
+    }
+  });
 
-  // Excel formula: (upperCorrect + lowerCorrect) / (groupSize * 2)
-  return (upperCorrect + lowerCorrect) / (groupSize * 2);
+  lowerGroup.forEach(s => {
+    const response = s.responses?.find(r => r.item_id === itemId);
+    if (response && response.points_earned !== null && response.points_earned !== undefined) {
+      lowerSum += parseFloat(response.points_earned);
+      lowerCount++;
+    }
+  });
+
+  if (upperCount === 0 && lowerCount === 0) return null;
+
+  const upperAvg = upperCount > 0 ? upperSum / upperCount : 0;
+  const lowerAvg = lowerCount > 0 ? lowerSum / lowerCount : 0;
+
+  // Difficulty = average of upper and lower group performance
+  // Normalized by max points to get value between 0 and 1
+  const avgPoints = (upperAvg + lowerAvg) / 2;
+  return avgPoints / maxPoints;
 }
 
 /**
@@ -67,9 +86,10 @@ export function interpretDifficulty(p) {
 
 /**
  * Calculate discrimination index using upper/lower 27% method
- * Excel formula: (upperCorrect - lowerCorrect) / (groupSize * 2)
+ * For MC items: (upperCorrect - lowerCorrect) / (groupSize * 2)
+ * For weighted items: (avgUpperPoints - avgLowerPoints) / maxPoints
  */
-export function calculateDiscrimination(students, itemId) {
+export function calculateDiscrimination(students, itemId, maxPoints = 1) {
   if (!students || students.length < 10) return null;
 
   // Sort students by total score (descending)
@@ -80,19 +100,36 @@ export function calculateDiscrimination(students, itemId) {
   const upperGroup = sorted.slice(0, groupSize);
   const lowerGroup = sorted.slice(-groupSize);
 
-  // Count correct responses in each group
-  const upperCorrect = upperGroup.filter(s => {
-    const response = s.responses?.find(r => r.item_id === itemId);
-    return response && response.is_correct;
-  }).length;
+  // Calculate average points earned in each group
+  let upperSum = 0;
+  let upperCount = 0;
+  let lowerSum = 0;
+  let lowerCount = 0;
 
-  const lowerCorrect = lowerGroup.filter(s => {
+  upperGroup.forEach(s => {
     const response = s.responses?.find(r => r.item_id === itemId);
-    return response && response.is_correct;
-  }).length;
+    if (response && response.points_earned !== null && response.points_earned !== undefined) {
+      upperSum += parseFloat(response.points_earned);
+      upperCount++;
+    }
+  });
 
-  // Excel formula: (upperCorrect - lowerCorrect) / (groupSize * 2)
-  return (upperCorrect - lowerCorrect) / (groupSize * 2);
+  lowerGroup.forEach(s => {
+    const response = s.responses?.find(r => r.item_id === itemId);
+    if (response && response.points_earned !== null && response.points_earned !== undefined) {
+      lowerSum += parseFloat(response.points_earned);
+      lowerCount++;
+    }
+  });
+
+  if (upperCount === 0 && lowerCount === 0) return null;
+
+  const upperAvg = upperCount > 0 ? upperSum / upperCount : 0;
+  const lowerAvg = lowerCount > 0 ? lowerSum / lowerCount : 0;
+
+  // Discrimination = difference in performance between groups
+  // Normalized by max points to get value between -1 and 1
+  return (upperAvg - lowerAvg) / maxPoints;
 }
 
 /**

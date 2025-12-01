@@ -166,7 +166,12 @@ export default function Analysis() {
         </Tabs>
 
         <TabPanel value={tab} index={0}>
-          <OverviewTab assessmentId={id} statistics={statistics} items={statistics?.itemStatistics || []} />
+          <OverviewTab
+            assessmentId={id}
+            statistics={statistics}
+            items={statistics?.itemStatistics || []}
+            assessmentMetadata={statistics?.assessmentMetadata || {}}
+          />
         </TabPanel>
 
         <TabPanel value={tab} index={1}>
