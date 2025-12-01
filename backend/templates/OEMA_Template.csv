@@ -1,7 +1,7 @@
-ID,Name,Sex,School,District,School Type,Country,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q1a,Q1b,Q2a,Q2b,Q3a,Q3b,Q4a,Q4b,Q5a,Q5b,Q6a
-KEY,,,,,,,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,2,1,2,1,1,1,1,1
-1001,Student A,M,Central Primary School,District A,Public,LCA,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,2,1,2,1,1,1,1,1
-1002,Student B,F,North Secondary,District A,Private,LCA,B,B,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,1,2,1,0,2,1,0,1,1,0
-1003,Student C,M,South Primary,District B,Denominational,GRN,A,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,0,2,1,2,1,1,1,1,0,1,1
-1004,Student D,F,East Academy,District B,Public,SVG,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,1,2,2,1,2,0,1,1,0,1
-1005,Student E,M,West College,District C,Private,SKN,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,1,1,1,1,1,1,1,1
+ID,School,Country,Sex,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q1a,Q1b,Q2a,Q2b,Q3a,Q3b,Q4a,Q4b,Q5a,Q5b,Q6a
+KEY,,,,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,2,1,2,1,1,1,1,1
+1001,Central Primary School,LCA,M,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,2,1,2,1,1,1,1,1
+1002,North Secondary,LCA,F,B,B,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,1,2,1,0,2,1,0,1,1,0
+1003,South Primary,GRN,M,A,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,0,2,1,2,1,1,1,1,0,1,1
+1004,East Academy,SVG,F,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,1,2,2,1,2,0,1,1,0,1
+1005,West College,SKN,M,B,A,C,B,C,C,A,C,A,B,C,A,B,A,C,A,C,B,1,2,2,1,1,1,1,1,1,1,1
