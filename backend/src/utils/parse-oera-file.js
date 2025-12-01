@@ -130,6 +130,7 @@ export function parseOERAFile(filePath, mimeType) {
   // Find column indices
   const idColumnIndex = headerRow.findIndex(h => String(h).trim() === 'ID');
   const nameColumnIndex = headerRow.findIndex(h => String(h).trim() === 'Name');
+  const countryColumnIndex = headerRow.findIndex(h => String(h).trim() === 'Country');
   const sexColumnIndex = headerRow.findIndex(h => String(h).trim() === 'Sex');
   const schoolColumnIndex = headerRow.findIndex(h => String(h).trim() === 'School');
   const schoolTypeColumnIndex = headerRow.findIndex(h => String(h).trim() === 'School_Type' || String(h).trim() === 'School Type');
@@ -139,7 +140,7 @@ export function parseOERAFile(filePath, mimeType) {
     throw new Error('ID column not found in header row');
   }
 
-  console.log(`Column indices - ID: ${idColumnIndex}, Name: ${nameColumnIndex}, Sex: ${sexColumnIndex}, School: ${schoolColumnIndex}, School_Type: ${schoolTypeColumnIndex}, District: ${districtColumnIndex}`);
+  console.log(`Column indices - ID: ${idColumnIndex}, Name: ${nameColumnIndex}, Country: ${countryColumnIndex}, Sex: ${sexColumnIndex}, School: ${schoolColumnIndex}, School_Type: ${schoolTypeColumnIndex}, District: ${districtColumnIndex}`);
 
   for (let i = dataStartIndex; i < rawData.length; i++) {
     const row = rawData[i];
@@ -152,8 +153,18 @@ export function parseOERAFile(filePath, mimeType) {
     // Skip rows without student ID
     if (!studentId || studentId === '') continue;
 
-    // Extract country from Name column (contains country codes like SVG, GRN, ANB, etc.)
+    // Extract name (optional - may not exist in all templates)
     const nameValue = nameColumnIndex !== -1 && row[nameColumnIndex] ? String(row[nameColumnIndex]).trim() : '';
+
+    // Extract country - prefer dedicated Country column, fall back to Name column for backward compatibility
+    let countryValue = '';
+    if (countryColumnIndex !== -1 && row[countryColumnIndex]) {
+      // Use dedicated Country column (new format)
+      countryValue = String(row[countryColumnIndex]).trim();
+    } else if (nameValue) {
+      // Fall back to Name column (old format where Name contained country codes)
+      countryValue = nameValue;
+    }
 
     // Extract gender - convert empty to null for database
     const genderValue = sexColumnIndex !== -1 && row[sexColumnIndex] ? String(row[sexColumnIndex]).trim().toUpperCase() : '';
@@ -166,8 +177,8 @@ export function parseOERAFile(filePath, mimeType) {
 
     const student = {
       studentId,
-      name: nameValue,
-      country: nameValue, // Store country code from Name column
+      name: nameValue || null,  // Name is optional
+      country: countryValue || null,  // Country from dedicated column or Name column
       gender: gender,
       school: schoolValue,
       schoolType: schoolTypeValue,
