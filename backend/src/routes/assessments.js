@@ -532,7 +532,12 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
 
     await client.query('COMMIT');
 
+    // ✅ FIX: Release client IMMEDIATELY after COMMIT to prevent pool exhaustion
+    // This allows calculateStatistics() to use pool connections without deadlocking
+    client.release();
+
     // Calculate statistics for the regional/main assessment
+    // Now safe to make additional queries without holding transaction client
     await calculateStatistics(assessmentId);
 
     // Check if this is a regional assessment (but don't split automatically)
@@ -555,13 +560,15 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
         code: c.code
       }))
     });
-    
+
   } catch (error) {
-    await client.query('ROLLBACK');
+    // Only rollback and release if we still have the client
+    if (client) {
+      await client.query('ROLLBACK');
+      client.release();
+    }
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Failed to upload assessment: ' + error.message });
-  } finally {
-    client.release();
   }
 });
 
