@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { createRateLimiter } from '../middleware/rateLimiter.js';
+import { sendVerificationEmail, sendApprovalEmail, sendRejectionEmail, generateVerificationToken } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -118,14 +119,17 @@ router.post('/login', loginRateLimiter, async (req, res) => {
 
 /**
  * POST /api/auth/register
- * Register new user (admin only in production)
+ * Register new user with email verification and admin approval workflow
  */
 router.post('/register', registerRateLimiter, async (req, res) => {
   try {
-    const { email, password, fullName, role = 'user' } = req.body;
+    const { email, password, fullName, role, country, accessJustification } = req.body;
 
-    if (!email || !password || !fullName) {
-      return res.status(400).json({ error: 'Email, password, and full name required' });
+    // Validate required fields
+    if (!email || !password || !fullName || !role || !accessJustification) {
+      return res.status(400).json({
+        error: 'Email, password, full name, role, and access justification are required'
+      });
     }
 
     // Validate email format
@@ -150,42 +154,235 @@ router.post('/register', registerRateLimiter, async (req, res) => {
     if (!/[0-9]/.test(password)) {
       return res.status(400).json({ error: 'Password must contain at least one number' });
     }
-    
+
+    // Validate role (cannot register as admin)
+    const allowedRoles = ['analyst', 'national_coordinator', 'user'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        error: 'Invalid role. Allowed roles: analyst, national_coordinator, user'
+      });
+    }
+
+    // Validate country requirement for national coordinators
+    if (role === 'national_coordinator' && !country) {
+      return res.status(400).json({
+        error: 'Country is required for National Coordinator role'
+      });
+    }
+
+    // Validate access justification length
+    if (accessJustification.length < 50 || accessJustification.length > 500) {
+      return res.status(400).json({
+        error: 'Access justification must be between 50 and 500 characters'
+      });
+    }
+
     // Check if user exists
     const existing = await query(
-      'SELECT id FROM users WHERE email = $1',
+      'SELECT id, registration_status FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
-    
+
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'User already exists' });
+      const existingUser = existing.rows[0];
+      if (existingUser.registration_status === 'rejected') {
+        return res.status(409).json({
+          error: 'A previous registration with this email was rejected. Please contact support.'
+        });
+      }
+      return res.status(409).json({ error: 'User with this email already exists' });
     }
-    
+
+    // Look up country_id if country provided
+    let countryId = null;
+    if (country) {
+      const countryResult = await query(
+        'SELECT id FROM member_states WHERE state_code = $1 OR state_name = $1',
+        [country]
+      );
+      if (countryResult.rows.length > 0) {
+        countryId = countryResult.rows[0].id;
+      }
+    }
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
-    
-    // Create user
+
+    // Generate verification token
+    const verificationToken = generateVerificationToken();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Create user (inactive, pending verification)
     const result = await query(
-      `INSERT INTO users (email, password_hash, full_name, role) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO users (
+        email, password_hash, full_name, role, country_id,
+        is_active, email_verified, email_verification_token,
+        email_verification_expires, registration_status, access_justification
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id, email, full_name, role`,
-      [email.toLowerCase(), passwordHash, fullName, role]
+      [
+        email.toLowerCase(),
+        passwordHash,
+        fullName,
+        role,
+        countryId,
+        false, // is_active
+        false, // email_verified
+        verificationToken,
+        verificationExpires,
+        'pending_verification',
+        accessJustification
+      ]
     );
-    
+
     const user = result.rows[0];
-    
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role
-      }
+
+    // Send verification email
+    await sendVerificationEmail({
+      to: email.toLowerCase(),
+      fullName,
+      verificationToken
     });
-    
+
+    res.status(201).json({
+      message: 'Registration successful! Please check your email to verify your account.',
+      userId: user.id,
+      email: user.email
+    });
+
   } catch (error) {
     console.error('Registration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/auth/verify-email/:token
+ * Verify user's email address
+ */
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Find user with this verification token
+    const result = await query(
+      `SELECT id, email, full_name, email_verification_expires, registration_status
+       FROM users
+       WHERE email_verification_token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid verification token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Check if token expired
+    if (new Date() > new Date(user.email_verification_expires)) {
+      return res.status(400).json({
+        error: 'Verification token has expired. Please request a new verification email.',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    // Check if already verified
+    if (user.registration_status !== 'pending_verification') {
+      return res.status(400).json({
+        error: 'Email already verified',
+        code: 'ALREADY_VERIFIED'
+      });
+    }
+
+    // Update user: mark email as verified, move to pending_approval
+    await query(
+      `UPDATE users
+       SET email_verified = TRUE,
+           registration_status = 'pending_approval',
+           email_verification_token = NULL,
+           email_verification_expires = NULL
+       WHERE id = $1`,
+      [user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully! Your account is pending admin approval.',
+      email: user.email
+    });
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification email
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user
+    const result = await query(
+      `SELECT id, email, full_name, registration_status, email_verified
+       FROM users
+       WHERE email = $1`,
+      [email.toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      // Don't reveal if email exists or not (security)
+      return res.json({
+        message: 'If your email is registered and not verified, you will receive a verification email.'
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Check if already verified
+    if (user.email_verified || user.registration_status !== 'pending_verification') {
+      return res.json({
+        message: 'If your email is registered and not verified, you will receive a verification email.'
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = generateVerificationToken();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Update user with new token
+    await query(
+      `UPDATE users
+       SET email_verification_token = $1,
+           email_verification_expires = $2
+       WHERE id = $3`,
+      [verificationToken, verificationExpires, user.id]
+    );
+
+    // Send verification email
+    await sendVerificationEmail({
+      to: user.email,
+      fullName: user.full_name,
+      verificationToken
+    });
+
+    res.json({
+      message: 'If your email is registered and not verified, you will receive a verification email.'
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

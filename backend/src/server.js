@@ -10,6 +10,7 @@ import memberStatesRoutes from './routes/member-states.js';
 import usersRoutes from './routes/users.js';
 import comparisonsRoutes from './routes/comparisons.js';
 import auditLogsRoutes from './routes/audit-logs.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
@@ -63,6 +64,7 @@ app.use('/api/member-states', memberStatesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/comparisons', comparisonsRoutes);
 app.use('/api/audit-logs', auditLogsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
