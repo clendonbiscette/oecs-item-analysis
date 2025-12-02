@@ -6,7 +6,7 @@
 // Country code mapping (from student data codes to member state codes)
 export const COUNTRY_CODE_MAP = {
   'ANB': { memberStateId: 1, code: 'ANB', name: 'Antigua and Barbuda' },
-  'ANG': { memberStateId: 1, code: 'ANB', name: 'Antigua and Barbuda' }, // Alternative code
+  'ANG': { memberStateId: 9, code: 'ANG', name: 'Anguilla' }, // Anguilla is a separate member state
   'BVI': { memberStateId: 2, code: 'BVI', name: 'British Virgin Islands' },
   'DOM': { memberStateId: 3, code: 'DMA', name: 'Dominica' },
   'DMA': { memberStateId: 3, code: 'DMA', name: 'Dominica' },
