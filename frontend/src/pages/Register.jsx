@@ -285,7 +285,7 @@ export default function Register() {
               Create Account
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Register for access to the OECS Item Analysis Platform
+              Register for access to OECS Assessment Item Analysis
             </Typography>
           </Box>
 
@@ -469,7 +469,7 @@ export default function Register() {
             fontSize: '0.75rem',
           }}
         >
-          © {new Date().getFullYear()} OECS Commission
+          © {new Date().getFullYear()} OECS Assessment Item Analysis
         </Typography>
       </Container>
     </Box>

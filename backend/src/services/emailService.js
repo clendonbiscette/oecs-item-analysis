@@ -18,7 +18,7 @@ export async function sendVerificationEmail({ to, fullName, verificationToken })
 
   const emailContent = {
     to,
-    subject: 'Verify Your Email - OECS Item Analysis Platform',
+    subject: 'Verify Your Email - OECS Assessment Item Analysis',
     html: `
       <!DOCTYPE html>
       <html>
@@ -36,12 +36,12 @@ export async function sendVerificationEmail({ to, fullName, verificationToken })
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to OECS Item Analysis Platform</h1>
+              <h1>Welcome to OECS Assessment Item Analysis</h1>
             </div>
             <div class="content">
               <p>Hello <strong>${fullName}</strong>,</p>
 
-              <p>Thank you for registering with the OECS Item Analysis Platform.</p>
+              <p>Thank you for registering with OECS Assessment Item Analysis.</p>
 
               <p>Please verify your email address by clicking the button below:</p>
 
@@ -65,7 +65,7 @@ export async function sendVerificationEmail({ to, fullName, verificationToken })
               </p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} OECS Commission</p>
+              <p>© ${new Date().getFullYear()} OECS Assessment Item Analysis</p>
             </div>
           </div>
         </body>
@@ -74,7 +74,7 @@ export async function sendVerificationEmail({ to, fullName, verificationToken })
     text: `
 Hello ${fullName},
 
-Thank you for registering with the OECS Item Analysis Platform.
+Thank you for registering with OECS Assessment Item Analysis.
 
 Please verify your email address by visiting this link:
 ${verificationUrl}
@@ -86,7 +86,7 @@ After verifying your email, your account will be reviewed by an administrator. Y
 If you did not create this account, please ignore this email.
 
 ---
-© ${new Date().getFullYear()} OECS Commission
+© ${new Date().getFullYear()} OECS Assessment Item Analysis
     `
   };
 
@@ -113,7 +113,7 @@ export async function sendApprovalEmail({ to, fullName, role, country }) {
 
   const emailContent = {
     to,
-    subject: 'Your Access Request Has Been Approved - OECS Item Analysis Platform',
+    subject: 'Your Access Request Has Been Approved - OECS Assessment Item Analysis',
     html: `
       <!DOCTYPE html>
       <html>
@@ -136,7 +136,7 @@ export async function sendApprovalEmail({ to, fullName, role, country }) {
             <div class="content">
               <p>Hello <strong>${fullName}</strong>,</p>
 
-              <p>Good news! Your access request for the OECS Item Analysis Platform has been approved.</p>
+              <p>Good news! Your access request for OECS Assessment Item Analysis has been approved.</p>
 
               <div class="info-box">
                 <p style="margin: 0;"><strong>Your Account Details:</strong></p>
@@ -157,7 +157,7 @@ export async function sendApprovalEmail({ to, fullName, role, country }) {
               <p style="margin-top: 30px;">If you have any questions or need assistance, please contact your administrator.</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} OECS Commission</p>
+              <p>© ${new Date().getFullYear()} OECS Assessment Item Analysis</p>
             </div>
           </div>
         </body>
@@ -166,7 +166,7 @@ export async function sendApprovalEmail({ to, fullName, role, country }) {
     text: `
 Hello ${fullName},
 
-Good news! Your access request for the OECS Item Analysis Platform has been approved.
+Good news! Your access request for OECS Assessment Item Analysis has been approved.
 
 Your Account Details:
 - Role: ${role}
@@ -177,7 +177,7 @@ You can now log in at: ${loginUrl}
 If you have any questions or need assistance, please contact your administrator.
 
 ---
-© ${new Date().getFullYear()} OECS Commission
+© ${new Date().getFullYear()} OECS Assessment Item Analysis
     `
   };
 
@@ -202,7 +202,7 @@ If you have any questions or need assistance, please contact your administrator.
 export async function sendRejectionEmail({ to, fullName, reason }) {
   const emailContent = {
     to,
-    subject: 'Access Request Update - OECS Item Analysis Platform',
+    subject: 'Access Request Update - OECS Assessment Item Analysis',
     html: `
       <!DOCTYPE html>
       <html>
@@ -224,7 +224,7 @@ export async function sendRejectionEmail({ to, fullName, reason }) {
             <div class="content">
               <p>Hello <strong>${fullName}</strong>,</p>
 
-              <p>Thank you for your interest in the OECS Item Analysis Platform.</p>
+              <p>Thank you for your interest in OECS Assessment Item Analysis.</p>
 
               <p>After reviewing your access request, we are unable to approve it at this time.</p>
 
@@ -240,7 +240,7 @@ export async function sendRejectionEmail({ to, fullName, reason }) {
               </p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} OECS Commission</p>
+              <p>© ${new Date().getFullYear()} OECS Assessment Item Analysis</p>
             </div>
           </div>
         </body>
@@ -249,7 +249,7 @@ export async function sendRejectionEmail({ to, fullName, reason }) {
     text: `
 Hello ${fullName},
 
-Thank you for your interest in the OECS Item Analysis Platform.
+Thank you for your interest in OECS Assessment Item Analysis.
 
 After reviewing your access request, we are unable to approve it at this time.
 
@@ -258,7 +258,7 @@ Reason: ${reason}
 If you have questions about this decision or believe there has been an error, please contact the platform administrator at support@oecs.org.
 
 ---
-© ${new Date().getFullYear()} OECS Commission
+© ${new Date().getFullYear()} OECS Assessment Item Analysis
     `
   };
 

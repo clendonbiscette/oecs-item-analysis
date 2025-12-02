@@ -93,7 +93,7 @@ export default function Dashboard() {
           Dashboard
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1rem' }}>
-          Welcome to the OECS Item Analysis Platform
+          Welcome to OECS Assessment Item Analysis
         </Typography>
       </Box>
 

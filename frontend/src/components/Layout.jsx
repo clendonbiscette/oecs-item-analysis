@@ -134,18 +134,7 @@ export default function Layout() {
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    OECS Commission
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.7rem',
-                      lineHeight: 1,
-                      fontWeight: 500,
-                    }}
-                  >
-                    Item Analysis Platform
+                    OECS Assessment Item Analysis
                   </Typography>
                 </Box>
               </Box>
@@ -364,7 +353,7 @@ export default function Layout() {
               fontWeight: 400,
             }}
           >
-            © {new Date().getFullYear()} OECS Commission
+            © {new Date().getFullYear()} OECS Assessment Item Analysis
           </Typography>
         </Container>
       </Box>
