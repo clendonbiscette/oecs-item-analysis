@@ -34,7 +34,7 @@ import {
   DialogActions,
 } from '@mui/material';
 import {
-  CloudUpload as UploadIcon,
+  UploadFile as UploadIcon,
   Download as DownloadIcon,
   CheckCircle as CheckIcon,
   RadioButtonUnchecked as PendingIcon,
