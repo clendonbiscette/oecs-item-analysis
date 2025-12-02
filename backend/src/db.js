@@ -7,11 +7,13 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Serverless-friendly settings with room for concurrent operations
-  max: 3, // Allow up to 3 connections per serverless function for concurrent queries
-  idleTimeoutMillis: 10000, // Close idle connections after 10 seconds
-  connectionTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
-  allowExitOnIdle: true, // Allow process to exit when all connections are idle
+  // Serverless-optimized settings for Supabase connection pooler
+  max: 10, // Increased from 3 to handle concurrent requests in serverless environment
+  idleTimeoutMillis: 10000, // Close idle connections after 10 seconds to free resources
+  connectionTimeoutMillis: 30000, // Increased from 10s to 30s to prevent premature timeouts
+  allowExitOnIdle: true, // Allow process to exit when all connections are idle (serverless-friendly)
+  // Additional settings for better reliability
+  statement_timeout: 25000, // Timeout individual statements at 25s (before connection timeout)
 });
 
 // Test connection
