@@ -11,6 +11,7 @@ import usersRoutes from './routes/users.js';
 import comparisonsRoutes from './routes/comparisons.js';
 import auditLogsRoutes from './routes/audit-logs.js';
 import adminRoutes from './routes/admin.js';
+import dbStatusRoutes from './routes/db-status.js';
 
 // Load environment variables
 dotenv.config();
@@ -54,6 +55,9 @@ app.use(auditMiddleware);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Database status check (no auth required for debugging)
+app.use('/api/db-status', dbStatusRoutes);
 
 // API Routes
 app.use('/api/auth', authRoutes);
