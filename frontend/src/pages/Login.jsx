@@ -116,7 +116,7 @@ export default function Login() {
                 fontWeight: 400,
               }}
             >
-              Sign in to access the Item Analysis Platform
+              Sign in to OECS Assessment Item Analysis
             </Typography>
 
             {error && (
@@ -203,7 +203,7 @@ export default function Login() {
                 fontSize: '0.75rem',
               }}
             >
-              © {new Date().getFullYear()} OECS Commission
+              © {new Date().getFullYear()} OECS Assessment Item Analysis
             </Typography>
           </Box>
         </Paper>

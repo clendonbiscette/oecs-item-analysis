@@ -1,6 +1,6 @@
-# OECS Item Analysis Platform - Frontend
+# OECS Assessment Item Analysis - Frontend
 
-React application built with Material-UI for the OECS Item Analysis Platform.
+React application built with Material-UI for OECS Assessment Item Analysis.
 
 ## Features
 
@@ -242,4 +242,4 @@ Outputs to `dist/` directory. Deploy to:
 
 ## License
 
-Proprietary - OECS Commission
+Proprietary - OECS Assessment Item Analysis
