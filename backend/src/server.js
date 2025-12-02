@@ -21,7 +21,10 @@ const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     console.error(`❌ Missing required environment variable: ${envVar}`);
-    process.exit(1);
+    // Don't exit in serverless environment - let the function fail with proper error
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 }
 
@@ -94,9 +97,11 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`
+// Start server (only in non-serverless environment)
+// In Vercel, this won't run - Vercel uses the exported app directly
+if (process.env.VERCEL !== '1') {
+  const server = app.listen(PORT, () => {
+    console.log(`
 ╔══════════════════════════════════════════╗
 ║  OECS Item Analysis Platform - Backend  ║
 ║                                          ║
@@ -110,24 +115,25 @@ const server = app.listen(PORT, () => {
 ║  - GET  /api/statistics/:id              ║
 ║                                          ║
 ╚══════════════════════════════════════════╝
-  `);
-});
-
-// Graceful shutdown handler
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+    `);
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+  // Graceful shutdown handler
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
   });
-});
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT signal received: closing HTTP server');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  });
+}
 
 export default app;
