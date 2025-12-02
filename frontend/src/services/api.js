@@ -51,6 +51,14 @@ export const registerUser = (data) => {
   return api.post('/auth/register', data);
 };
 
+export const verifyEmail = (token) => {
+  return api.get(`/auth/verify-email/${token}`);
+};
+
+export const resendVerification = (email) => {
+  return api.post('/auth/resend-verification', { email });
+};
+
 // Assessments
 export const getAssessments = () => {
   return api.get('/assessments');
@@ -243,6 +251,23 @@ export const exportAuditLogs = (params) => {
     params,
     responseType: 'blob'
   });
+};
+
+// Admin - User Approvals
+export const getPendingUsers = () => {
+  return api.get('/admin/pending-users');
+};
+
+export const getRegistrationStats = () => {
+  return api.get('/admin/registration-stats');
+};
+
+export const approveUser = (userId, data = {}) => {
+  return api.post(`/admin/approve-user/${userId}`, data);
+};
+
+export const rejectUser = (userId, reason) => {
+  return api.post(`/admin/reject-user/${userId}`, { reason });
 };
 
 export default api;

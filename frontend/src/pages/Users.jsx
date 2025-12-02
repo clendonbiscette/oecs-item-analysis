@@ -26,12 +26,18 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  Tabs,
+  Tab,
+  Badge,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   VpnKey as KeyIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as RejectIcon,
 } from '@mui/icons-material';
 import {
   getUsers,
@@ -40,6 +46,10 @@ import {
   updateUser,
   updateUserPassword,
   deleteUser,
+  getPendingUsers,
+  approveUser,
+  rejectUser,
+  getRegistrationStats,
 } from '../services/api';
 
 const ROLES = [
@@ -63,16 +73,23 @@ const getRoleColor = (role) => {
 
 export default function Users() {
   const [users, setUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [memberStates, setMemberStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
 
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
   const [openPasswordDialog, setOpenPasswordDialog] = useState(false);
+  const [openApproveDialog, setOpenApproveDialog] = useState(false);
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [passwordUserId, setPasswordUserId] = useState(null);
+  const [approvingUser, setApprovingUser] = useState(null);
+  const [rejectingUser, setRejectingUser] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -85,6 +102,11 @@ export default function Users() {
   });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [approvalOverride, setApprovalOverride] = useState({
+    role: '',
+    countryId: '',
+  });
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -93,12 +115,16 @@ export default function Users() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, statesRes] = await Promise.all([
+      const [usersRes, statesRes, pendingRes, statsRes] = await Promise.all([
         getUsers(),
         getMemberStates(),
+        getPendingUsers(),
+        getRegistrationStats(),
       ]);
       setUsers(usersRes.data);
       setMemberStates(statesRes.data);
+      setPendingUsers(pendingRes.data);
+      setPendingCount(statsRes.data.pending_approval || 0);
     } catch (err) {
       setError('Failed to load users');
       console.error(err);
@@ -248,6 +274,75 @@ export default function Users() {
     }
   };
 
+  const handleOpenApproveDialog = (user) => {
+    setApprovingUser(user);
+    setApprovalOverride({
+      role: '',
+      countryId: '',
+    });
+    setOpenApproveDialog(true);
+  };
+
+  const handleCloseApproveDialog = () => {
+    setOpenApproveDialog(false);
+    setApprovingUser(null);
+    setApprovalOverride({
+      role: '',
+      countryId: '',
+    });
+  };
+
+  const handleApprove = async () => {
+    try {
+      setError('');
+
+      const data = {};
+      if (approvalOverride.role) {
+        data.role = approvalOverride.role;
+      }
+      if (approvalOverride.countryId) {
+        data.countryId = parseInt(approvalOverride.countryId);
+      }
+
+      await approveUser(approvingUser.id, data);
+      setSuccess(`User ${approvingUser.email} approved successfully`);
+      handleCloseApproveDialog();
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to approve user');
+    }
+  };
+
+  const handleOpenRejectDialog = (user) => {
+    setRejectingUser(user);
+    setRejectionReason('');
+    setOpenRejectDialog(true);
+  };
+
+  const handleCloseRejectDialog = () => {
+    setOpenRejectDialog(false);
+    setRejectingUser(null);
+    setRejectionReason('');
+  };
+
+  const handleReject = async () => {
+    try {
+      setError('');
+
+      if (!rejectionReason.trim()) {
+        setError('Rejection reason is required');
+        return;
+      }
+
+      await rejectUser(rejectingUser.id, rejectionReason);
+      setSuccess(`User ${rejectingUser.email} rejected`);
+      handleCloseRejectDialog();
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reject user');
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -279,17 +374,35 @@ export default function Users() {
         </Alert>
       )}
 
-      <Paper sx={{ p: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Users</Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-          >
-            Add User
-          </Button>
-        </Box>
+      <Paper sx={{ p: 0 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
+        >
+          <Tab label="Users" />
+          <Tab
+            label={
+              <Badge badgeContent={pendingCount} color="primary">
+                <span style={{ marginRight: pendingCount > 0 ? '16px' : '0' }}>Pending Approvals</span>
+              </Badge>
+            }
+          />
+        </Tabs>
+
+        {/* Users Tab */}
+        {activeTab === 0 && (
+          <Box sx={{ p: 2 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">Users</Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog()}
+              >
+                Add User
+              </Button>
+            </Box>
 
         <TableContainer>
           <Table>
@@ -359,6 +472,101 @@ export default function Users() {
             </TableBody>
           </Table>
         </TableContainer>
+          </Box>
+        )}
+
+        {/* Pending Approvals Tab */}
+        {activeTab === 1 && (
+          <Box sx={{ p: 2 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">Pending Approvals</Typography>
+              <Chip label={`${pendingCount} pending`} color="primary" size="small" />
+            </Box>
+
+            {pendingUsers.length === 0 ? (
+              <Box sx={{ py: 8, textAlign: 'center' }}>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No Pending Approvals
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  All registration requests have been processed
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Full Name</TableCell>
+                      <TableCell>Requested Role</TableCell>
+                      <TableCell>Country</TableCell>
+                      <TableCell>Registered</TableCell>
+                      <TableCell>Justification</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pendingUsers.map((user) => (
+                      <TableRow key={user.id} hover>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.full_name}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={ROLES.find(r => r.value === user.role)?.label || user.role}
+                            color={getRoleColor(user.role)}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{user.country_name || '-'}</TableCell>
+                        <TableCell>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={user.access_justification}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                maxWidth: 200,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                cursor: 'help',
+                              }}
+                            >
+                              {user.access_justification}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            startIcon={<ApproveIcon />}
+                            onClick={() => handleOpenApproveDialog(user)}
+                            sx={{ mr: 1 }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={<RejectIcon />}
+                            onClick={() => handleOpenRejectDialog(user)}
+                          >
+                            Reject
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
+        )}
       </Paper>
 
       {/* Create/Edit User Dialog */}
@@ -476,6 +684,127 @@ export default function Users() {
           <Button onClick={handleClosePasswordDialog}>Cancel</Button>
           <Button onClick={handleResetPassword} variant="contained">
             Reset Password
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approve User Dialog */}
+      <Dialog open={openApproveDialog} onClose={handleCloseApproveDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Approve User Registration</DialogTitle>
+        <DialogContent>
+          {approvingUser && (
+            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Alert severity="info">
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>User Details:</strong>
+                </Typography>
+                <Typography variant="body2">Email: {approvingUser.email}</Typography>
+                <Typography variant="body2">Name: {approvingUser.full_name}</Typography>
+                <Typography variant="body2">
+                  Requested Role: {ROLES.find(r => r.value === approvingUser.role)?.label}
+                </Typography>
+                {approvingUser.country_name && (
+                  <Typography variant="body2">Country: {approvingUser.country_name}</Typography>
+                )}
+              </Alert>
+
+              <Typography variant="body2" color="text.secondary">
+                You can approve the user with their requested role and country, or override these settings below:
+              </Typography>
+
+              <FormControl fullWidth>
+                <InputLabel>Override Role (optional)</InputLabel>
+                <Select
+                  value={approvalOverride.role}
+                  label="Override Role (optional)"
+                  onChange={(e) => setApprovalOverride({ ...approvalOverride, role: e.target.value })}
+                >
+                  <MenuItem value="">
+                    <em>Keep requested role ({ROLES.find(r => r.value === approvingUser.role)?.label})</em>
+                  </MenuItem>
+                  {ROLES.map((role) => (
+                    <MenuItem key={role.value} value={role.value}>
+                      {role.label} - {role.description}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {(approvalOverride.role === 'national_coordinator' ||
+                (!approvalOverride.role && approvingUser.role === 'national_coordinator')) && (
+                <FormControl fullWidth>
+                  <InputLabel>Override Country (optional)</InputLabel>
+                  <Select
+                    value={approvalOverride.countryId}
+                    label="Override Country (optional)"
+                    onChange={(e) => setApprovalOverride({ ...approvalOverride, countryId: e.target.value })}
+                  >
+                    <MenuItem value="">
+                      <em>Keep requested country ({approvingUser.country_name || 'None'})</em>
+                    </MenuItem>
+                    {memberStates.map((state) => (
+                      <MenuItem key={state.id} value={state.id}>
+                        {state.state_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  <strong>Access Justification:</strong>
+                </Typography>
+                <Typography variant="body2">
+                  {approvingUser.access_justification}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseApproveDialog}>Cancel</Button>
+          <Button onClick={handleApprove} variant="contained" color="success">
+            Approve User
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reject User Dialog */}
+      <Dialog open={openRejectDialog} onClose={handleCloseRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject User Registration</DialogTitle>
+        <DialogContent>
+          {rejectingUser && (
+            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Alert severity="warning">
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>User Details:</strong>
+                </Typography>
+                <Typography variant="body2">Email: {rejectingUser.email}</Typography>
+                <Typography variant="body2">Name: {rejectingUser.full_name}</Typography>
+              </Alert>
+
+              <Typography variant="body2" color="text.secondary">
+                Please provide a reason for rejecting this registration. The user will receive this in their rejection email.
+              </Typography>
+
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Rejection Reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                required
+                placeholder="e.g., Insufficient justification for access, duplicate registration, etc."
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRejectDialog}>Cancel</Button>
+          <Button onClick={handleReject} variant="contained" color="error">
+            Reject User
           </Button>
         </DialogActions>
       </Dialog>
