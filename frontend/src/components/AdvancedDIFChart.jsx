@@ -263,19 +263,24 @@ export default function AdvancedDIFChart({ data }) {
           />
 
           {/* Percentile lines with custom markers */}
-          {['P1', 'P2', 'P3', 'P4', 'P5'].map(percentile => (
-            <Line
-              key={percentile}
-              type="monotone"
-              dataKey={percentile}
-              stroke={PERCENTILE_COLORS[percentile]}
-              strokeWidth={2}
-              dot={PERCENTILE_MARKERS[percentile]}
-              activeDot={{ r: 6 }}
-              name={percentile}
-              connectNulls
-            />
-          ))}
+          {['P1', 'P2', 'P3', 'P4', 'P5'].map(percentile => {
+            const MarkerComponent = PERCENTILE_MARKERS[percentile];
+            const color = PERCENTILE_COLORS[percentile];
+
+            return (
+              <Line
+                key={percentile}
+                type="monotone"
+                dataKey={percentile}
+                stroke={color}
+                strokeWidth={2}
+                dot={(props) => <MarkerComponent {...props} fill={color} />}
+                activeDot={{ r: 6, fill: color }}
+                name={percentile}
+                connectNulls
+              />
+            );
+          })}
         </ComposedChart>
       </ResponsiveContainer>
 
