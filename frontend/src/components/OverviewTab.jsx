@@ -874,7 +874,7 @@ export default function OverviewTab({ assessmentId, statistics, items = [], asse
                   Item Performance Across Percentile Groups
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  This analysis shows how each item performs for students of different ability levels (Top 25%, Middle 50%, Bottom 25%).
+                  This analysis shows how each item performs for students of different ability levels (Top 27%, Middle 46%, Bottom 27%).
                   Good items should show positive discrimination - higher performing students should score better on each item.
                 </Typography>
 
@@ -939,9 +939,9 @@ export default function OverviewTab({ assessmentId, statistics, items = [], asse
                       <TableRow>
                         <TableCell><strong>Item</strong></TableCell>
                         <TableCell><strong>Type</strong></TableCell>
-                        <TableCell align="right"><strong>Top 25%</strong></TableCell>
-                        <TableCell align="right"><strong>Middle 50%</strong></TableCell>
-                        <TableCell align="right"><strong>Bottom 25%</strong></TableCell>
+                        <TableCell align="right"><strong>Top 27%</strong></TableCell>
+                        <TableCell align="right"><strong>Middle 46%</strong></TableCell>
+                        <TableCell align="right"><strong>Bottom 27%</strong></TableCell>
                         <TableCell align="right"><strong>Discrimination</strong></TableCell>
                         <TableCell align="center"><strong>Status</strong></TableCell>
                       </TableRow>
@@ -989,7 +989,7 @@ export default function OverviewTab({ assessmentId, statistics, items = [], asse
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                   <Typography variant="caption" color="text.secondary">
                     <strong>Interpretation:</strong> Percentages show the proportion of students in each group who answered correctly.
-                    Discrimination is calculated as (Top 25% difficulty - Bottom 25% difficulty).
+                    Discrimination is calculated as (Top 27% difficulty - Bottom 27% difficulty).
                     Good discrimination (≥0.30) indicates the item effectively differentiates between high and low performers.
                   </Typography>
                 </Box>

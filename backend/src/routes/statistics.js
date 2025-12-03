@@ -710,7 +710,7 @@ router.get('/:assessmentId/countries', async (req, res) => {
 
 /**
  * GET /api/statistics/:assessmentId/percentile-analysis
- * Get item performance across percentile groups (top 25%, middle 50%, bottom 25%)
+ * Get item performance across percentile groups (top 27%, middle 46%, bottom 27%)
  * This shows how items perform for students of different ability levels
  */
 router.get('/:assessmentId/percentile-analysis', async (req, res) => {
@@ -733,14 +733,14 @@ router.get('/:assessmentId/percentile-analysis', async (req, res) => {
       return res.json({ groups: [], items: [] });
     }
 
-    // Calculate percentile cutoffs
-    const top25Index = Math.floor(totalStudents * 0.25);
-    const bottom75Index = Math.floor(totalStudents * 0.75);
+    // Calculate percentile cutoffs (upper and lower 27%)
+    const top27Index = Math.floor(totalStudents * 0.27);
+    const bottom73Index = Math.floor(totalStudents * 0.73);
 
     // Divide students into groups
-    const topGroup = students.slice(0, top25Index); // Top 25%
-    const middleGroup = students.slice(top25Index, bottom75Index); // Middle 50%
-    const bottomGroup = students.slice(bottom75Index); // Bottom 25%
+    const topGroup = students.slice(0, top27Index); // Top 27%
+    const middleGroup = students.slice(top27Index, bottom73Index); // Middle 46%
+    const bottomGroup = students.slice(bottom73Index); // Bottom 27%
 
     // Get all items with max_points for weighted scoring
     const itemsResult = await query(
@@ -826,7 +826,7 @@ router.get('/:assessmentId/percentile-analysis', async (req, res) => {
     // Calculate group summaries
     const groupSummary = {
       topGroup: {
-        label: 'Top 25%',
+        label: 'Top 27%',
         count: topGroup.length,
         minScore: topGroup.length > 0 ? parseFloat(topGroup[topGroup.length - 1].total_score) : 0,
         maxScore: topGroup.length > 0 ? parseFloat(topGroup[0].total_score) : 0,
@@ -834,7 +834,7 @@ router.get('/:assessmentId/percentile-analysis', async (req, res) => {
           topGroup.reduce((sum, s) => sum + parseFloat(s.total_score), 0) / topGroup.length : 0
       },
       middleGroup: {
-        label: 'Middle 50%',
+        label: 'Middle 46%',
         count: middleGroup.length,
         minScore: middleGroup.length > 0 ? parseFloat(middleGroup[middleGroup.length - 1].total_score) : 0,
         maxScore: middleGroup.length > 0 ? parseFloat(middleGroup[0].total_score) : 0,
@@ -842,7 +842,7 @@ router.get('/:assessmentId/percentile-analysis', async (req, res) => {
           middleGroup.reduce((sum, s) => sum + parseFloat(s.total_score), 0) / middleGroup.length : 0
       },
       bottomGroup: {
-        label: 'Bottom 25%',
+        label: 'Bottom 27%',
         count: bottomGroup.length,
         minScore: bottomGroup.length > 0 ? parseFloat(bottomGroup[bottomGroup.length - 1].total_score) : 0,
         maxScore: bottomGroup.length > 0 ? parseFloat(bottomGroup[0].total_score) : 0,
