@@ -183,7 +183,7 @@ export default function Upload() {
         // Not regional, navigate to dashboard where user can view the assessment
         setLoading(false);
         setActiveStep(2);
-        setCurrentStage(stages.length); // Mark all stages complete
+        setCurrentStage(PROGRESS_STAGES.length); // Mark all stages complete
 
         // Navigate to dashboard after brief delay to show completion
         setTimeout(() => {
