@@ -144,7 +144,7 @@ export default function AdvancedDIFChart({ data }) {
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" gutterBottom>
-        OERA Differential Item Functioning (DIF)
+        Differential Item Functioning (DIF)
       </Typography>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         Females vs. Males

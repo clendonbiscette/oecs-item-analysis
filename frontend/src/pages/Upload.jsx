@@ -510,7 +510,7 @@ export default function Upload() {
                 onChange={(e) => setAssessmentName(e.target.value)}
                 required
                 sx={{ mb: 3 }}
-                placeholder="e.g., 2025 OERA - Regional or 2025 OERA - Grenada"
+                placeholder="e.g., 2025 Regional Assessment or 2025 Grenada Assessment"
               />
 
               <TextField
