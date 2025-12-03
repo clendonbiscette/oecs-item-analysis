@@ -23,6 +23,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -152,12 +154,13 @@ const DIFTab = ({ assessmentId }) => {
       genderDIF.itemDIF.length
     ).toFixed(4);
 
-    // Prepare chart data
-    const chartData = genderDIF.itemDIF.slice(0, 20).map(item => ({
+    // Prepare chart data (all items for line chart)
+    const lineChartData = genderDIF.itemDIF.map(item => ({
       item: item.itemCode,
-      male: item.maleDifficulty,
-      female: item.femaleDifficulty,
-      classification: item.classification
+      male: (item.maleDifficulty * 100).toFixed(1),
+      female: (item.femaleDifficulty * 100).toFixed(1),
+      maleRaw: item.maleDifficulty,
+      femaleRaw: item.femaleDifficulty
     }));
 
     return (
@@ -199,21 +202,47 @@ const DIFTab = ({ assessmentId }) => {
           </Grid>
         </Grid>
 
-        {/* Bar Chart */}
+        {/* Line Chart - All Items */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Male vs Female Difficulty (First 20 Items)
+            Gender DIF Across All Items
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            Shows item difficulty (%) for males vs females across all items
           </Typography>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData}>
+            <LineChart data={lineChartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="item" />
-              <YAxis domain={[0, 1]} />
-              <Tooltip />
+              <XAxis
+                dataKey="item"
+                tick={{ fontSize: 10 }}
+                interval={Math.floor(lineChartData.length / 20)}
+              />
+              <YAxis
+                domain={[0, 100]}
+                label={{ value: 'Difficulty (%)', angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip
+                formatter={(value, name) => [`${value}%`, name === 'male' ? 'Male' : 'Female']}
+              />
               <Legend />
-              <Bar dataKey="male" fill="#1976d2" name="Male Difficulty" />
-              <Bar dataKey="female" fill="#d81b60" name="Female Difficulty" />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="male"
+                stroke="#1976d2"
+                name="Male Difficulty"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="female"
+                stroke="#d81b60"
+                name="Female Difficulty"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </Paper>
 
@@ -278,11 +307,89 @@ const DIFTab = ({ assessmentId }) => {
 
     const percentileGroups = ['P1', 'P2', 'P3', 'P4', 'P5'];
 
+    // Prepare line chart data
+    const percentileLineData = percentileDIF.map(item => {
+      const dataPoint = { item: item.itemCode };
+      percentileGroups.forEach(group => {
+        const data = item.percentiles?.[group];
+        if (data) {
+          dataPoint[group] = (data.percentileDifficulty * 100).toFixed(1);
+        }
+      });
+      return dataPoint;
+    });
+
     return (
       <Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           Shows item performance across ability levels compared to OECS average. P1 = Bottom 20%, P5 = Top 20%.
         </Typography>
+
+        {/* Line Chart - All Percentiles */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Percentile Performance Across All Items
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            Shows how each ability level performs on each item
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={percentileLineData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="item"
+                tick={{ fontSize: 10 }}
+                interval={Math.floor(percentileLineData.length / 20)}
+              />
+              <YAxis
+                domain={[0, 100]}
+                label={{ value: 'Difficulty (%)', angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip formatter={(value) => `${value}%`} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="P1"
+                stroke="#d32f2f"
+                name="P1 (0-20%)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="P2"
+                stroke="#f57c00"
+                name="P2 (21-40%)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="P3"
+                stroke="#fbc02d"
+                name="P3 (41-60%)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="P4"
+                stroke="#388e3c"
+                name="P4 (61-80%)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="P5"
+                stroke="#1976d2"
+                name="P5 (81-100%)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Paper>
 
         <TableContainer component={Paper}>
           <Table size="small">
@@ -361,11 +468,66 @@ const DIFTab = ({ assessmentId }) => {
       Object.keys(item.countries || {})
     ))].sort();
 
+    // Prepare line chart data
+    const countryLineData = countryDIF.map(item => {
+      const dataPoint = { item: item.itemCode };
+      countries.forEach(country => {
+        const data = item.countries?.[country];
+        if (data) {
+          dataPoint[country] = (data.countryDifficulty * 100).toFixed(1);
+        }
+      });
+      return dataPoint;
+    });
+
+    // Color palette for countries
+    const countryColors = [
+      '#1976d2', '#d32f2f', '#388e3c', '#f57c00', '#7b1fa2',
+      '#0097a7', '#c2185b', '#5d4037', '#455a64', '#00796b'
+    ];
+
     return (
       <Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           Compares each country's performance to OECS regional average. Positive DIF = easier for country, Negative = harder.
         </Typography>
+
+        {/* Line Chart - All Countries */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Country Performance Across All Items
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            Shows item difficulty (%) for each country
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={countryLineData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="item"
+                tick={{ fontSize: 10 }}
+                interval={Math.floor(countryLineData.length / 20)}
+              />
+              <YAxis
+                domain={[0, 100]}
+                label={{ value: 'Difficulty (%)', angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip formatter={(value) => `${value}%`} />
+              <Legend />
+              {countries.map((country, index) => (
+                <Line
+                  key={country}
+                  type="monotone"
+                  dataKey={country}
+                  stroke={countryColors[index % countryColors.length]}
+                  name={country}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </Paper>
 
         <TableContainer component={Paper}>
           <Table size="small">
