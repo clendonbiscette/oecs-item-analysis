@@ -90,18 +90,9 @@ const PERCENTILE_LABELS = {
   P5: 'P5 (Top 20%)'
 };
 
-// Custom Tooltip that filters out allUpper and allLower
+// Custom Tooltip that shows all values including allUpper and allLower
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) {
-    return null;
-  }
-
-  // Filter out allUpper and allLower entries
-  const filteredPayload = payload.filter(
-    entry => entry.dataKey !== 'allUpper' && entry.dataKey !== 'allLower'
-  );
-
-  if (filteredPayload.length === 0) {
     return null;
   }
 
@@ -115,17 +106,21 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p style={{ margin: 0, marginBottom: 8, fontWeight: 600 }}>
         Item: {label}
       </p>
-      {filteredPayload.map((entry, index) => {
+      {payload.map((entry, index) => {
         let displayName = entry.dataKey;
         if (entry.dataKey === 'all') {
           displayName = 'Overall (ALL)';
+        } else if (entry.dataKey === 'allUpper') {
+          displayName = 'Upper Bound';
+        } else if (entry.dataKey === 'allLower') {
+          displayName = 'Lower Bound';
         } else if (PERCENTILE_LABELS[entry.dataKey]) {
           displayName = PERCENTILE_LABELS[entry.dataKey];
         }
 
         return (
           <p key={index} style={{ margin: 0, color: entry.color }}>
-            <span style={{ fontWeight: 600 }}>{displayName}:</span> {entry.value}%
+            <span style={{ fontWeight: 600 }}>{displayName}:</span> {entry.value !== null ? `${entry.value}%` : 'N/A'}
           </p>
         );
       })}
