@@ -234,42 +234,62 @@ export function calculateSEM(stdev, reliability) {
  */
 export function analyzeDistractors(item, students) {
   if (!students || students.length < 10) return null;
-  
+
   // Sort students by total score
   const sorted = [...students].sort((a, b) => b.total_score - a.total_score);
   const groupSize = Math.floor(sorted.length * 0.27);
   const upperGroup = sorted.slice(0, groupSize);
   const lowerGroup = sorted.slice(-groupSize);
-  
-  const options = ['A', 'B', 'C', 'D'];
+
+  // Dynamically detect unique response options from actual student responses
+  const uniqueOptions = new Set();
+  students.forEach(s => {
+    const response = s.responses?.find(r => r.item_id === item.id);
+    if (response && response.response_value) {
+      // Handle single letter responses (A, B, C, D, etc.)
+      const value = response.response_value.trim().toUpperCase();
+      if (value.match(/^[A-Z]$/)) {
+        uniqueOptions.add(value);
+      }
+    }
+  });
+
+  // Convert to sorted array (A, B, C, D, etc.)
+  const options = Array.from(uniqueOptions).sort();
+
+  // Fallback to A, B, C if no options detected (shouldn't happen with valid data)
+  if (options.length === 0) {
+    options.push('A', 'B', 'C');
+  }
+
   const analysis = [];
-  
+
   for (const option of options) {
     const upperCount = upperGroup.filter(s => {
       const response = s.responses?.find(r => r.item_id === item.id);
       return response && response.response_value === option;
     }).length;
-    
+
     const lowerCount = lowerGroup.filter(s => {
       const response = s.responses?.find(r => r.item_id === item.id);
       return response && response.response_value === option;
     }).length;
-    
+
     const discrimination = (upperCount - lowerCount) / groupSize;
     const isCorrect = option === item.correct_answer;
-    
+
     analysis.push({
       option,
       upperCount,
       lowerCount,
       discrimination: Math.round(discrimination * 10000) / 10000,
       isCorrect,
-      status: isCorrect 
+      status: isCorrect
         ? (discrimination > 0 ? 'functioning' : 'poor discrimination')
         : (discrimination < 0 ? 'functioning' : 'non-functioning')
     });
   }
-  
+
   return analysis;
 }
 

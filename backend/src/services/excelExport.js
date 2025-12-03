@@ -182,7 +182,26 @@ async function createDistractorSheet(assessmentId) {
 
   // Analyze each item
   for (const item of itemsResult.rows) {
-    const options = ['A', 'B', 'C', 'D'];
+    // Dynamically detect unique response options from actual student responses
+    const uniqueOptions = new Set();
+    students.forEach(s => {
+      const response = s.responses?.find(r => r.item_id === item.id);
+      if (response && response.response_value) {
+        // Handle single letter responses (A, B, C, D, etc.)
+        const value = response.response_value.trim().toUpperCase();
+        if (value.match(/^[A-Z]$/)) {
+          uniqueOptions.add(value);
+        }
+      }
+    });
+
+    // Convert to sorted array (A, B, C, D, etc.)
+    let options = Array.from(uniqueOptions).sort();
+
+    // Fallback to A, B, C if no options detected
+    if (options.length === 0) {
+      options = ['A', 'B', 'C'];
+    }
 
     for (const option of options) {
       const upperCount = upperGroup.filter(s => {
