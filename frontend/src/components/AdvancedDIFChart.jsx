@@ -28,24 +28,24 @@ import { Box, Typography, Paper } from '@mui/material';
 // Custom marker shapes for each percentile
 const CircleMarker = (props) => {
   const { cx, cy, fill } = props;
-  return <circle cx={cx} cy={cy} r={4} fill={fill} stroke="white" strokeWidth={1.5} />;
+  return <circle cx={cx} cy={cy} r={4} fill={fill} stroke={fill} strokeWidth={1.5} />;
 };
 
 const SquareMarker = (props) => {
   const { cx, cy, fill } = props;
-  return <rect x={cx - 4} y={cy - 4} width={8} height={8} fill={fill} stroke="white" strokeWidth={1.5} />;
+  return <rect x={cx - 4} y={cy - 4} width={8} height={8} fill={fill} stroke={fill} strokeWidth={1.5} />;
 };
 
 const TriangleMarker = (props) => {
   const { cx, cy, fill } = props;
   const points = `${cx},${cy - 5} ${cx + 4.5},${cy + 3.5} ${cx - 4.5},${cy + 3.5}`;
-  return <polygon points={points} fill={fill} stroke="white" strokeWidth={1.5} />;
+  return <polygon points={points} fill={fill} stroke={fill} strokeWidth={1.5} />;
 };
 
 const DiamondMarker = (props) => {
   const { cx, cy, fill } = props;
   const points = `${cx},${cy - 5} ${cx + 4},${cy} ${cx},${cy + 5} ${cx - 4},${cy}`;
-  return <polygon points={points} fill={fill} stroke="white" strokeWidth={1.5} />;
+  return <polygon points={points} fill={fill} stroke={fill} strokeWidth={1.5} />;
 };
 
 const StarMarker = (props) => {
@@ -62,7 +62,7 @@ const StarMarker = (props) => {
     points.push(`${x},${y}`);
   }
 
-  return <polygon points={points.join(' ')} fill={fill} stroke="white" strokeWidth={1} />;
+  return <polygon points={points.join(' ')} fill={fill} stroke={fill} strokeWidth={1} />;
 };
 
 // Color palette: Reds to Greens (matching psychometric standards)
