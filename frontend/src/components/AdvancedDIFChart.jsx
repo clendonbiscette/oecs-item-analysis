@@ -90,6 +90,49 @@ const PERCENTILE_LABELS = {
   P5: 'P5 (Top 20%)'
 };
 
+// Custom Tooltip that filters out allUpper and allLower
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
+
+  // Filter out allUpper and allLower entries
+  const filteredPayload = payload.filter(
+    entry => entry.dataKey !== 'allUpper' && entry.dataKey !== 'allLower'
+  );
+
+  if (filteredPayload.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={{
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      border: '1px solid #ccc',
+      borderRadius: 8,
+      padding: '10px'
+    }}>
+      <p style={{ margin: 0, marginBottom: 8, fontWeight: 600 }}>
+        Item: {label}
+      </p>
+      {filteredPayload.map((entry, index) => {
+        let displayName = entry.dataKey;
+        if (entry.dataKey === 'all') {
+          displayName = 'Overall (ALL)';
+        } else if (PERCENTILE_LABELS[entry.dataKey]) {
+          displayName = PERCENTILE_LABELS[entry.dataKey];
+        }
+
+        return (
+          <p key={index} style={{ margin: 0, color: entry.color }}>
+            <span style={{ fontWeight: 600 }}>{displayName}:</span> {entry.value}%
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+
 export default function AdvancedDIFChart({ data }) {
   // Transform data for Recharts
   const chartData = useMemo(() => {
@@ -181,15 +224,7 @@ export default function AdvancedDIFChart({ data }) {
             />
           </YAxis>
 
-          <Tooltip
-            formatter={(value, name) => {
-              if (name === 'all') return [`${value}%`, 'Overall (ALL)'];
-              if (name.startsWith('all')) return null; // Hide bounds from tooltip
-              return [`${value}%`, PERCENTILE_LABELS[name] || name];
-            }}
-            labelFormatter={(label) => `Item: ${label}`}
-            contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: 8 }}
-          />
+          <Tooltip content={<CustomTooltip />} />
 
           <Legend
             verticalAlign="top"
