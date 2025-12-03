@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart } from 'recharts';
 import { getScoreDistribution, getGenderAnalysis, getContentDomainAnalysis, getAvailableCountries, getSchoolAnalysis, getDistrictAnalysis, getSchoolTypeAnalysis, getPercentileAnalysis } from '../services/api';
+import { sortItems } from '../utils/itemSorting';
 
 export default function OverviewTab({ assessmentId, statistics, items = [], assessmentMetadata = {} }) {
   const [distribution, setDistribution] = useState([]);
@@ -184,8 +185,8 @@ export default function OverviewTab({ assessmentId, statistics, items = [], asse
     return acc;
   }, []);
 
-  // Identify flagged items (poor or review status)
-  const flaggedItems = items.filter(item => item.status === 'poor' || item.status === 'review');
+  // Identify flagged items (poor or review status) and sort them (MC first, then CR, in natural order)
+  const flaggedItems = sortItems(items.filter(item => item.status === 'poor' || item.status === 'review'));
   const poorItems = items.filter(item => item.status === 'poor');
   const reviewItems = items.filter(item => item.status === 'review');
 
@@ -947,7 +948,7 @@ export default function OverviewTab({ assessmentId, statistics, items = [], asse
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {percentileData.items.map((item) => (
+                      {sortItems(percentileData.items).map((item) => (
                         <TableRow key={item.itemId}>
                           <TableCell>{item.itemCode}</TableCell>
                           <TableCell>

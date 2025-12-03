@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { getDistractorAnalysis } from '../services/api';
+import { sortItems } from '../utils/itemSorting';
 
 function ItemRow({ itemData }) {
   const [open, setOpen] = useState(false);
@@ -148,12 +149,8 @@ export default function DistractorsTab({ assessmentId }) {
     );
   }
 
-  // Sort data by numeric part of item_code
-  const sortedData = [...data].sort((a, b) => {
-    const numA = parseInt(a.item_code.replace(/\D/g, '')) || 0;
-    const numB = parseInt(b.item_code.replace(/\D/g, '')) || 0;
-    return numA - numB;
-  });
+  // Sort data: MC items first, then CR items, each in natural order (Q1, Q1a, Q1b, Q2, etc.)
+  const sortedData = sortItems(data);
 
   return (
     <Box sx={{ p: 3 }}>

@@ -28,6 +28,7 @@ import {
 import { Info as InfoIcon } from '@mui/icons-material';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Label } from 'recharts';
 import { getItemDistractors } from '../services/api';
+import { getItemComparator } from '../utils/itemSorting';
 
 export default function ItemsTab({ assessmentId, items }) {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -83,36 +84,6 @@ export default function ItemsTab({ assessmentId, items }) {
     setOrderBy(property);
   };
 
-  const getComparator = (order, orderBy) => {
-    return order === 'desc'
-      ? (a, b) => descendingComparator(a, b, orderBy)
-      : (a, b) => -descendingComparator(a, b, orderBy);
-  };
-
-  const descendingComparator = (a, b, orderBy) => {
-    let aVal, bVal;
-
-    if (orderBy === 'item_code') {
-      aVal = parseInt(a.item_code.replace(/\D/g, '')) || 0;
-      bVal = parseInt(b.item_code.replace(/\D/g, '')) || 0;
-    } else if (orderBy === 'difficulty') {
-      aVal = a.statistics.difficulty || 0;
-      bVal = b.statistics.difficulty || 0;
-    } else if (orderBy === 'discrimination') {
-      aVal = a.statistics.discrimination || 0;
-      bVal = b.statistics.discrimination || 0;
-    } else if (orderBy === 'point_biserial') {
-      aVal = a.statistics.point_biserial || 0;
-      bVal = b.statistics.point_biserial || 0;
-    } else {
-      return 0;
-    }
-
-    if (bVal < aVal) return -1;
-    if (bVal > aVal) return 1;
-    return 0;
-  };
-
   // Apply filters
   const filteredItems = items.filter((item) => {
     if (statusFilter !== 'all' && item.status !== statusFilter) {
@@ -124,8 +95,8 @@ export default function ItemsTab({ assessmentId, items }) {
     return true;
   });
 
-  // Sort filtered items
-  const sortedItems = [...filteredItems].sort(getComparator(order, orderBy));
+  // Sort filtered items: MC items first, then CR items, each in natural order
+  const sortedItems = [...filteredItems].sort(getItemComparator(order, orderBy));
 
   // Prepare scatter plot data
   const scatterData = sortedItems
