@@ -1184,4 +1184,49 @@ router.get('/:assessmentId/dif/country-gender', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/statistics/:assessmentId/dif/percentile-gender
+ * Get Percentile-Gender DIF analysis for advanced psychometric chart
+ * Calculates gender difference (Female - Male) within each percentile group (P1-P5)
+ */
+router.get('/:assessmentId/dif/percentile-gender', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const { calculatePercentileGenderDIF } = await import('../utils/dif.js');
+
+    // Get students with responses
+    const studentsResult = await query(
+      `SELECT s.*,
+              json_agg(json_build_object(
+                'item_id', r.item_id,
+                'points_earned', r.points_earned
+              )) as responses
+       FROM students s
+       LEFT JOIN responses r ON r.student_id = s.id
+       WHERE s.assessment_id = $1
+       GROUP BY s.id`,
+      [assessmentId]
+    );
+
+    const students = studentsResult.rows;
+
+    // Get items
+    const itemsResult = await query(
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      [assessmentId]
+    );
+
+    const items = itemsResult.rows;
+
+    // Calculate percentile-gender DIF
+    const result = calculatePercentileGenderDIF(students, items);
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error calculating percentile-gender DIF:', error);
+    res.status(500).json({ error: 'Failed to calculate percentile-gender DIF' });
+  }
+});
+
 export default router;

@@ -340,3 +340,114 @@ export function calculateCountryGenderDIF(students, items) {
   console.log(`✓ Country-Gender DIF calculated for ${results.length} item-country combinations`);
   return results;
 }
+
+/**
+ * Calculate Percentile-Gender DIF Analysis
+ * For each percentile group (P1-P5), calculates gender difference (Female - Male)
+ * This is used for the advanced psychometric DIF chart
+ *
+ * @param {Array} students - Array of student objects with gender, total_score, and responses
+ * @param {Array} items - Array of item objects
+ * @returns {Object} - { itemData: Array, allData: Object }
+ *   itemData: For each item, contains P1-P5 differences and ALL overall difference
+ *   allData: Overall gender DIF across all students (for grey band)
+ */
+export function calculatePercentileGenderDIF(students, items) {
+  if (students.length < 50) {
+    console.warn(`Insufficient sample size for percentile-gender DIF: ${students.length} students`);
+    return { itemData: [], allData: null };
+  }
+
+  // Sort students by total score
+  const sorted = [...students].sort((a, b) => b.total_score - a.total_score);
+
+  // Divide into 5 quintiles
+  const quintileSize = Math.floor(sorted.length / 5);
+  const percentileGroups = {
+    'P1': sorted.slice(4 * quintileSize), // Bottom 20% (0-20th percentile)
+    'P2': sorted.slice(3 * quintileSize, 4 * quintileSize), // 21-40th
+    'P3': sorted.slice(2 * quintileSize, 3 * quintileSize), // 41-60th
+    'P4': sorted.slice(quintileSize, 2 * quintileSize), // 61-80th
+    'P5': sorted.slice(0, quintileSize) // Top 20% (81-100th)
+  };
+
+  console.log(`Calculating Percentile-Gender DIF for ${items.length} items across 5 percentile groups`);
+
+  const itemData = [];
+
+  // Calculate overall gender DIF for "ALL" band
+  const allMaleStudents = students.filter(s => s.gender === 'M');
+  const allFemaleStudents = students.filter(s => s.gender === 'F');
+
+  for (const item of items) {
+    const maxPoints = parseInt(item.max_points) || 1;
+    const itemResult = {
+      itemId: item.id,
+      itemCode: item.item_code,
+      assessmentId: item.assessment_id,
+      percentiles: {}
+    };
+
+    // Calculate for each percentile group
+    for (const [percentile, groupStudents] of Object.entries(percentileGroups)) {
+      const maleStudents = groupStudents.filter(s => s.gender === 'M');
+      const femaleStudents = groupStudents.filter(s => s.gender === 'F');
+
+      if (maleStudents.length < 3 || femaleStudents.length < 3) {
+        itemResult.percentiles[percentile] = null;
+        continue;
+      }
+
+      const maleStats = calculateGroupDifficulty(maleStudents, item.id, maxPoints);
+      const femaleStats = calculateGroupDifficulty(femaleStudents, item.id, maxPoints);
+
+      if (!maleStats || !femaleStats) {
+        itemResult.percentiles[percentile] = null;
+        continue;
+      }
+
+      // Calculate difference as percentage points (Female - Male)
+      // Positive value means females performed better, negative means males performed better
+      const differencePct = (femaleStats.difficulty - maleStats.difficulty) * 100;
+
+      itemResult.percentiles[percentile] = {
+        maleDifficulty: maleStats.difficulty,
+        femaleDifficulty: femaleStats.difficulty,
+        differencePct: differencePct,
+        maleSampleSize: maleStudents.length,
+        femaleSampleSize: femaleStudents.length
+      };
+    }
+
+    // Calculate overall "ALL" gender difference for this item
+    const allMaleStats = calculateGroupDifficulty(allMaleStudents, item.id, maxPoints);
+    const allFemaleStats = calculateGroupDifficulty(allFemaleStudents, item.id, maxPoints);
+
+    if (allMaleStats && allFemaleStats) {
+      itemResult.allDifferencePct = (allFemaleStats.difficulty - allMaleStats.difficulty) * 100;
+      itemResult.allMaleDifficulty = allMaleStats.difficulty;
+      itemResult.allFemaleDifficulty = allFemaleStats.difficulty;
+    } else {
+      itemResult.allDifferencePct = null;
+    }
+
+    itemData.push(itemResult);
+  }
+
+  // Calculate average "ALL" difference across all items for summary
+  const validAllDiffs = itemData.filter(i => i.allDifferencePct !== null);
+  const avgAllDifference = validAllDiffs.length > 0
+    ? validAllDiffs.reduce((sum, i) => sum + i.allDifferencePct, 0) / validAllDiffs.length
+    : null;
+
+  console.log(`✓ Percentile-Gender DIF calculated for ${itemData.length} items`);
+
+  return {
+    itemData,
+    allData: {
+      avgDifferencePct: avgAllDifference,
+      totalMale: allMaleStudents.length,
+      totalFemale: allFemaleStudents.length
+    }
+  };
+}

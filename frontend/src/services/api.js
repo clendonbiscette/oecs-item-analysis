@@ -287,4 +287,8 @@ export const getCountryGenderDIF = (assessmentId) => {
   return api.get(`/statistics/${assessmentId}/dif/country-gender`);
 };
 
+export const getPercentileGenderDIF = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/dif/percentile-gender`);
+};
+
 export default api;

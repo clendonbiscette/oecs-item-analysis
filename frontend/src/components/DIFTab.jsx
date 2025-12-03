@@ -33,7 +33,8 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
-import { getGenderDIF, getPercentileDIF, getCountryDIF, getCountryGenderDIF } from '../services/api';
+import { getGenderDIF, getPercentileDIF, getCountryDIF, getCountryGenderDIF, getPercentileGenderDIF } from '../services/api';
+import AdvancedDIFChart from './AdvancedDIFChart';
 
 /**
  * Get color for DIF classification chip
@@ -72,11 +73,13 @@ const DIFTab = ({ assessmentId }) => {
   const [percentileDIF, setPercentileDIF] = useState(null);
   const [countryDIF, setCountryDIF] = useState(null);
   const [countryGenderDIF, setCountryGenderDIF] = useState(null);
+  const [percentileGenderDIF, setPercentileGenderDIF] = useState(null);
   const [loading, setLoading] = useState({
     gender: true,
     percentile: true,
     country: true,
-    countryGender: true
+    countryGender: true,
+    percentileGender: true
   });
   const [error, setError] = useState(null);
 
@@ -103,7 +106,7 @@ const DIFTab = ({ assessmentId }) => {
         setLoading(prev => ({ ...prev, gender: false, percentile: false }));
 
         // Fetch on-demand (slower)
-        const [countryRes, countryGenderRes] = await Promise.all([
+        const [countryRes, countryGenderRes, percentileGenderRes] = await Promise.all([
           getCountryDIF(assessmentId).catch(err => {
             console.error('Country DIF error:', err);
             return { data: [] };
@@ -111,16 +114,21 @@ const DIFTab = ({ assessmentId }) => {
           getCountryGenderDIF(assessmentId).catch(err => {
             console.error('Country-Gender DIF error:', err);
             return { data: [] };
+          }),
+          getPercentileGenderDIF(assessmentId).catch(err => {
+            console.error('Percentile-Gender DIF error:', err);
+            return { data: { itemData: [], allData: null } };
           })
         ]);
 
         setCountryDIF(countryRes.data);
         setCountryGenderDIF(countryGenderRes.data);
-        setLoading(prev => ({ ...prev, country: false, countryGender: false }));
+        setPercentileGenderDIF(percentileGenderRes.data);
+        setLoading(prev => ({ ...prev, country: false, countryGender: false, percentileGender: false }));
       } catch (err) {
         console.error('DIF fetch error:', err);
         setError('Failed to load DIF analysis');
-        setLoading({ gender: false, percentile: false, country: false, countryGender: false });
+        setLoading({ gender: false, percentile: false, country: false, countryGender: false, percentileGender: false });
       }
     };
 
@@ -202,10 +210,24 @@ const DIFTab = ({ assessmentId }) => {
           </Grid>
         </Grid>
 
+        {/* Advanced Psychometric DIF Chart */}
+        {loading.percentileGender ? (
+          <Box display="flex" justifyContent="center" p={4}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>Loading advanced DIF analysis...</Typography>
+          </Box>
+        ) : percentileGenderDIF && percentileGenderDIF.itemData && percentileGenderDIF.itemData.length > 0 ? (
+          <AdvancedDIFChart data={percentileGenderDIF} />
+        ) : (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Insufficient data for percentile-gender DIF chart. Requires at least 50 students with gender data.
+          </Alert>
+        )}
+
         {/* Line Chart - All Items */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Gender DIF Across All Items
+            Gender DIF Across All Items (Basic View)
           </Typography>
           <Typography variant="body2" color="textSecondary" paragraph>
             Shows item difficulty (%) for males vs females across all items
