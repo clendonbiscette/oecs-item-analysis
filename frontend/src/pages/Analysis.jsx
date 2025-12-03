@@ -20,6 +20,7 @@ import OverviewTab from '../components/OverviewTab';
 import ItemsTab from '../components/ItemsTab';
 import StudentsTab from '../components/StudentsTab';
 import DistractorsTab from '../components/DistractorsTab';
+import DIFTab from '../components/DIFTab';
 
 function TabPanel({ children, value, index }) {
   return (
@@ -163,6 +164,7 @@ export default function Analysis() {
           <Tab label="Items" />
           <Tab label="Distractors" />
           <Tab label="Students" />
+          <Tab label="DIF Analysis" />
         </Tabs>
 
         <TabPanel value={tab} index={0}>
@@ -184,6 +186,10 @@ export default function Analysis() {
 
         <TabPanel value={tab} index={3}>
           <StudentsTab assessmentId={id} />
+        </TabPanel>
+
+        <TabPanel value={tab} index={4}>
+          <DIFTab assessmentId={id} />
         </TabPanel>
       </Paper>
     </Container>

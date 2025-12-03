@@ -958,4 +958,230 @@ router.get('/:assessmentId/students/:studentId/content-domains', async (req, res
   }
 });
 
+/**
+ * GET /api/statistics/:assessmentId/dif/gender
+ * Get Gender DIF analysis (pre-calculated)
+ */
+router.get('/:assessmentId/dif/gender', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    const result = await query(
+      `SELECT
+        d.item_id,
+        i.item_code,
+        i.item_type,
+        i.content_domain,
+        d.difficulty_a as male_difficulty,
+        d.difficulty_b as female_difficulty,
+        d.dif_score,
+        d.dif_classification,
+        d.sample_size_a as male_sample_size,
+        d.sample_size_b as female_sample_size
+       FROM dif_statistics d
+       JOIN items i ON i.id = d.item_id
+       WHERE d.assessment_id = $1 AND d.dif_type = 'gender'
+       ORDER BY i.item_code`,
+      [assessmentId]
+    );
+
+    res.json({
+      itemDIF: result.rows.map(row => ({
+        itemId: row.item_id,
+        itemCode: row.item_code,
+        itemType: row.item_type,
+        contentDomain: row.content_domain,
+        maleDifficulty: parseFloat(row.male_difficulty),
+        femaleDifficulty: parseFloat(row.female_difficulty),
+        difScore: parseFloat(row.dif_score),
+        classification: row.dif_classification,
+        maleSampleSize: parseInt(row.male_sample_size),
+        femaleSampleSize: parseInt(row.female_sample_size)
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching gender DIF:', error);
+    res.status(500).json({ error: 'Failed to fetch gender DIF analysis' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/dif/percentile
+ * Get Percentile DIF analysis (pre-calculated)
+ */
+router.get('/:assessmentId/dif/percentile', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    const result = await query(
+      `SELECT
+        d.item_id,
+        i.item_code,
+        i.item_type,
+        i.content_domain,
+        d.group_a as percentile_group,
+        d.difficulty_a as percentile_difficulty,
+        d.difficulty_b as oecs_difficulty,
+        d.dif_score,
+        d.dif_classification,
+        d.sample_size_a as group_sample_size
+       FROM dif_statistics d
+       JOIN items i ON i.id = d.item_id
+       WHERE d.assessment_id = $1 AND d.dif_type = 'percentile'
+       ORDER BY i.item_code, d.group_a`,
+      [assessmentId]
+    );
+
+    // Group by item
+    const itemsMap = {};
+    result.rows.forEach(row => {
+      if (!itemsMap[row.item_code]) {
+        itemsMap[row.item_code] = {
+          itemId: row.item_id,
+          itemCode: row.item_code,
+          itemType: row.item_type,
+          contentDomain: row.content_domain,
+          percentiles: {}
+        };
+      }
+
+      itemsMap[row.item_code].percentiles[row.percentile_group] = {
+        percentileDifficulty: parseFloat(row.percentile_difficulty),
+        oecsDifficulty: parseFloat(row.oecs_difficulty),
+        difScore: parseFloat(row.dif_score),
+        classification: row.dif_classification,
+        sampleSize: parseInt(row.group_sample_size)
+      };
+    });
+
+    res.json(Object.values(itemsMap));
+
+  } catch (error) {
+    console.error('Error fetching percentile DIF:', error);
+    res.status(500).json({ error: 'Failed to fetch percentile DIF analysis' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/dif/country
+ * Get Country DIF analysis (calculated on-demand)
+ */
+router.get('/:assessmentId/dif/country', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const { calculateCountryDIF } = await import('../utils/dif.js');
+
+    // Get students with responses
+    const studentsResult = await query(
+      `SELECT s.*,
+              json_agg(json_build_object(
+                'item_id', r.item_id,
+                'points_earned', r.points_earned
+              )) as responses
+       FROM students s
+       LEFT JOIN responses r ON r.student_id = s.id
+       WHERE s.assessment_id = $1
+       GROUP BY s.id`,
+      [assessmentId]
+    );
+
+    const students = studentsResult.rows;
+
+    // Get items
+    const itemsResult = await query(
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      [assessmentId]
+    );
+
+    const items = itemsResult.rows;
+
+    // Calculate on-demand
+    const countryDIF = calculateCountryDIF(students, items);
+
+    // Group by item and country
+    const itemsMap = {};
+    countryDIF.forEach(dif => {
+      if (!itemsMap[dif.itemCode]) {
+        itemsMap[dif.itemCode] = {
+          itemId: dif.itemId,
+          itemCode: dif.itemCode,
+          countries: {}
+        };
+      }
+
+      itemsMap[dif.itemCode].countries[dif.groupA] = {
+        countryDifficulty: dif.difficultyA,
+        oecsDifficulty: dif.difficultyB,
+        difScore: dif.difScore,
+        classification: dif.classification,
+        sampleSize: dif.sampleSizeA
+      };
+    });
+
+    res.json(Object.values(itemsMap));
+
+  } catch (error) {
+    console.error('Error calculating country DIF:', error);
+    res.status(500).json({ error: 'Failed to calculate country DIF' });
+  }
+});
+
+/**
+ * GET /api/statistics/:assessmentId/dif/country-gender
+ * Get Country-Gender DIF analysis (calculated on-demand)
+ */
+router.get('/:assessmentId/dif/country-gender', async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const { calculateCountryGenderDIF } = await import('../utils/dif.js');
+
+    // Get students with responses
+    const studentsResult = await query(
+      `SELECT s.*,
+              json_agg(json_build_object(
+                'item_id', r.item_id,
+                'points_earned', r.points_earned
+              )) as responses
+       FROM students s
+       LEFT JOIN responses r ON r.student_id = s.id
+       WHERE s.assessment_id = $1
+       GROUP BY s.id`,
+      [assessmentId]
+    );
+
+    const students = studentsResult.rows;
+
+    // Get items
+    const itemsResult = await query(
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      [assessmentId]
+    );
+
+    const items = itemsResult.rows;
+
+    // Calculate on-demand
+    const countryGenderDIF = calculateCountryGenderDIF(students, items);
+
+    // Format response
+    const results = countryGenderDIF.map(dif => ({
+      itemId: dif.itemId,
+      itemCode: dif.itemCode,
+      country: dif.country,
+      maleDifficulty: dif.difficultyA,
+      femaleDifficulty: dif.difficultyB,
+      difScore: dif.difScore,
+      classification: dif.classification,
+      maleSampleSize: dif.sampleSizeA,
+      femaleSampleSize: dif.sampleSizeB
+    }));
+
+    res.json(results);
+
+  } catch (error) {
+    console.error('Error calculating country-gender DIF:', error);
+    res.status(500).json({ error: 'Failed to calculate country-gender DIF' });
+  }
+});
+
 export default router;

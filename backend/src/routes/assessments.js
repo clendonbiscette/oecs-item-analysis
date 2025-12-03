@@ -223,13 +223,33 @@ router.post('/upload/validate', upload.single('file'), async (req, res) => {
       validation.warnings.push(`${metadata.multipleResponseCount} responses have multiple answers (e.g., "A C"). These will be marked as incorrect.`);
     }
 
+    // Warn about duplicate student IDs within countries
+    if (metadata.duplicatesRemoved > 0) {
+      const duplicatesByCountry = {};
+      metadata.duplicateWarnings.forEach(({ country, studentId, duplicatesRemoved }) => {
+        if (!duplicatesByCountry[country]) {
+          duplicatesByCountry[country] = [];
+        }
+        duplicatesByCountry[country].push(`${studentId} (${duplicatesRemoved} duplicate${duplicatesRemoved > 1 ? 's' : ''})`);
+      });
+
+      const warningMessages = Object.entries(duplicatesByCountry).map(([country, duplicates]) => {
+        return `${country}: ${duplicates.join(', ')}`;
+      });
+
+      validation.warnings.push(
+        `Found ${metadata.duplicatesRemoved} duplicate student ID${metadata.duplicatesRemoved > 1 ? 's' : ''} within countries. Kept first occurrence only. ${warningMessages.join(' | ')}`
+      );
+    }
+
     // Summary
     validation.summary = {
       studentCount: students.length,
       itemCount: items.length,
       hasAnswerKey: Object.keys(answerKey).length > 0,
       missingResponses,
-      multipleResponses: metadata.multipleResponseCount
+      multipleResponses: metadata.multipleResponseCount,
+      duplicatesRemoved: metadata.duplicatesRemoved || 0
     };
 
     // Preview (first 10 students)
@@ -540,6 +560,9 @@ router.post('/upload/confirm', canModify, upload.single('file'), async (req, res
     // Now safe to make additional queries without holding transaction client
     await calculateStatistics(assessmentId);
 
+    // Calculate DIF statistics (Gender and Percentile pre-calculated)
+    await calculateDIFStatistics(assessmentId);
+
     // Check if this is a regional assessment (but don't split automatically)
     const { isRegional, countries } = await detectRegionalAssessment(assessmentId);
 
@@ -791,6 +814,87 @@ async function calculateStatistics(assessmentId) {
   } catch (error) {
     console.error('Error calculating statistics:', error);
     throw error;
+  }
+}
+
+/**
+ * Calculate and store DIF statistics for an assessment
+ * Pre-calculates Gender DIF and Percentile DIF
+ * Country DIF and Country-Gender DIF are calculated on-demand
+ */
+async function calculateDIFStatistics(assessmentId) {
+  try {
+    const { calculateGenderDIF, calculatePercentileDIF } = await import('../utils/dif.js');
+
+    // Get students with responses
+    const studentsResult = await query(
+      `SELECT s.*,
+              json_agg(json_build_object(
+                'item_id', r.item_id,
+                'response_value', r.response_value,
+                'is_correct', r.is_correct,
+                'points_earned', r.points_earned
+              )) as responses
+       FROM students s
+       LEFT JOIN responses r ON r.student_id = s.id
+       WHERE s.assessment_id = $1
+       GROUP BY s.id`,
+      [assessmentId]
+    );
+
+    const students = studentsResult.rows;
+
+    // Get items
+    const itemsResult = await query(
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      [assessmentId]
+    );
+
+    const items = itemsResult.rows;
+
+    // Calculate DIF types (pre-calculated)
+    const genderDIF = calculateGenderDIF(students, items);
+    const percentileDIF = calculatePercentileDIF(students, items);
+    const allDIF = [...genderDIF, ...percentileDIF];
+
+    // Batch insert DIF statistics
+    if (allDIF.length > 0) {
+      const values = [];
+      const params = [];
+      let paramIndex = 1;
+
+      for (const dif of allDIF) {
+        values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10})`);
+        params.push(
+          dif.assessmentId,
+          dif.itemId,
+          dif.difType,
+          dif.groupA,
+          dif.groupB,
+          dif.difficultyA,
+          dif.difficultyB,
+          dif.difScore,
+          dif.classification,
+          dif.sampleSizeA,
+          dif.sampleSizeB
+        );
+        paramIndex += 11;
+      }
+
+      await query(
+        `INSERT INTO dif_statistics
+         (assessment_id, item_id, dif_type, group_a, group_b, difficulty_a, difficulty_b, dif_score, dif_classification, sample_size_a, sample_size_b)
+         VALUES ${values.join(', ')}`,
+        params
+      );
+
+      console.log(`✓ DIF statistics calculated (${allDIF.length} records) for assessment ${assessmentId}`);
+    } else {
+      console.log(`⚠ No DIF statistics calculated for assessment ${assessmentId} (insufficient data)`);
+    }
+  } catch (error) {
+    console.error('Error calculating DIF statistics:', error);
+    // Non-blocking: don't throw, just log error
   }
 }
 

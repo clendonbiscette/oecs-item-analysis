@@ -197,9 +197,68 @@ export function parseOERAFile(filePath, mimeType) {
 
   console.log(`Parsed ${students.length} students`);
 
-  // Detect multiple responses
+  // Detect within-country duplicate student IDs
+  const countryStudentMap = {}; // Track { country: { studentId: [indices] } }
+  const duplicateInfo = {}; // Track { country: { studentId: count } }
+  const indicesToRemove = new Set(); // Track which student indices to remove
+
+  students.forEach((student, index) => {
+    const country = student.country || 'UNKNOWN';
+    const studentId = student.studentId;
+
+    // Initialize country map if needed
+    if (!countryStudentMap[country]) {
+      countryStudentMap[country] = {};
+    }
+
+    // Track this student ID
+    if (!countryStudentMap[country][studentId]) {
+      countryStudentMap[country][studentId] = [index];
+    } else {
+      // Duplicate found! Keep first, mark rest for removal
+      countryStudentMap[country][studentId].push(index);
+      indicesToRemove.add(index);
+
+      // Track duplicate info for warning message
+      if (!duplicateInfo[country]) {
+        duplicateInfo[country] = {};
+      }
+      if (!duplicateInfo[country][studentId]) {
+        duplicateInfo[country][studentId] = countryStudentMap[country][studentId].length;
+      } else {
+        duplicateInfo[country][studentId]++;
+      }
+    }
+  });
+
+  // Filter out duplicates (keep only first occurrence)
+  const originalStudentCount = students.length;
+  const uniqueStudents = students.filter((_, index) => !indicesToRemove.has(index));
+  const duplicatesRemoved = originalStudentCount - uniqueStudents.length;
+
+  // Build warning messages
+  const duplicateWarnings = [];
+  if (duplicatesRemoved > 0) {
+    Object.entries(duplicateInfo).forEach(([country, studentDuplicates]) => {
+      Object.entries(studentDuplicates).forEach(([studentId, count]) => {
+        duplicateWarnings.push({
+          country,
+          studentId,
+          totalOccurrences: count,
+          duplicatesRemoved: count - 1
+        });
+      });
+    });
+
+    console.log(`⚠️  Found ${duplicatesRemoved} duplicate student IDs within countries (kept first occurrence):`);
+    duplicateWarnings.forEach(({ country, studentId, totalOccurrences, duplicatesRemoved }) => {
+      console.log(`   - ${country}: Student ID "${studentId}" appeared ${totalOccurrences} times (removed ${duplicatesRemoved})`);
+    });
+  }
+
+  // Detect multiple responses (check uniqueStudents, not the original students array)
   let multipleResponseCount = 0;
-  students.forEach(student => {
+  uniqueStudents.forEach(student => {
     Object.values(student.responses).forEach(response => {
       if (response && response.includes(' ')) {
         multipleResponseCount++;
@@ -212,18 +271,20 @@ export function parseOERAFile(filePath, mimeType) {
   }
 
   return {
-    students,
+    students: uniqueStudents, // Return filtered students without duplicates
     answerKey,
     items: questionColumns.map(q => q.code),
     itemsMetadata, // NEW: Contains itemType, maxPoints, correctAnswer for each item
     metadata: {
-      totalStudents: students.length,
+      totalStudents: uniqueStudents.length, // Use unique count
       totalItems: questionColumns.length,
       totalPoints, // NEW: Total possible points (sum of all max_points)
       mcCount, // NEW: Number of MC items
       crCount, // NEW: Number of CR items
       isWeighted: crCount > 0 || mcCount !== questionColumns.length, // NEW: True if assessment has weighted items
-      multipleResponseCount
+      multipleResponseCount,
+      duplicatesRemoved, // NEW: Number of duplicate students removed
+      duplicateWarnings // NEW: Detailed list of duplicates found
     }
   };
 }

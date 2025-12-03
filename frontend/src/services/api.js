@@ -270,4 +270,21 @@ export const rejectUser = (userId, reason) => {
   return api.post(`/admin/reject-user/${userId}`, { reason });
 };
 
+// DIF Analysis
+export const getGenderDIF = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/dif/gender`);
+};
+
+export const getPercentileDIF = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/dif/percentile`);
+};
+
+export const getCountryDIF = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/dif/country`);
+};
+
+export const getCountryGenderDIF = (assessmentId) => {
+  return api.get(`/statistics/${assessmentId}/dif/country-gender`);
+};
+
 export default api;
