@@ -217,7 +217,7 @@ async function calculateCountryStatistics(assessmentId) {
 
   // Get items
   const itemsResult = await query(
-    'SELECT id, item_code FROM items WHERE assessment_id = $1 ORDER BY item_code',
+    'SELECT id, item_code FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
     [assessmentId]
   );
   const items = itemsResult.rows;

@@ -101,7 +101,7 @@ async function createItemStatsSheet(assessmentId) {
      LEFT JOIN statistics s ON s.item_id = i.id
      WHERE i.assessment_id = $1
      GROUP BY i.id, i.item_code, i.correct_answer
-     ORDER BY i.item_code`,
+     ORDER BY LENGTH(i.item_code), i.item_code`,
     [assessmentId]
   );
 
@@ -147,7 +147,7 @@ async function createDistractorSheet(assessmentId) {
     `SELECT id, item_code, correct_answer
      FROM items
      WHERE assessment_id = $1
-     ORDER BY item_code`,
+     ORDER BY LENGTH(item_code), item_code`,
     [assessmentId]
   );
 
@@ -158,7 +158,7 @@ async function createDistractorSheet(assessmentId) {
               'item_id', r.item_id,
               'response_value', r.response_value,
               'is_correct', r.is_correct
-            ) ORDER BY i.item_code) as responses
+            ) ORDER BY LENGTH(i.item_code), i.item_code) as responses
      FROM students s
      LEFT JOIN responses r ON r.student_id = s.id
      LEFT JOIN items i ON i.id = r.item_id
@@ -229,7 +229,7 @@ async function createDistractorSheet(assessmentId) {
 async function createRawDataSheet(assessmentId) {
   // Get all items
   const itemsResult = await query(
-    `SELECT item_code FROM items WHERE assessment_id = $1 ORDER BY item_code`,
+    `SELECT item_code FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code`,
     [assessmentId]
   );
   const items = itemsResult.rows.map(i => i.item_code);
@@ -246,7 +246,7 @@ async function createRawDataSheet(assessmentId) {
            'item_code', i.item_code,
            'response_value', r.response_value,
            'is_correct', r.is_correct
-         ) ORDER BY i.item_code
+         ) ORDER BY LENGTH(i.item_code), i.item_code
        ) as responses
      FROM students s
      LEFT JOIN responses r ON r.student_id = s.id

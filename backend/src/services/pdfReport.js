@@ -43,7 +43,7 @@ export async function generatePDFReport(assessmentId) {
        LEFT JOIN statistics s ON s.item_id = i.id
        WHERE i.assessment_id = $1
        GROUP BY i.id, i.item_code, i.correct_answer
-       ORDER BY i.item_code`,
+       ORDER BY LENGTH(i.item_code), i.item_code`,
       [assessmentId]
     );
 

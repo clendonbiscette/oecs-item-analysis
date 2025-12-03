@@ -73,7 +73,7 @@ async function backfillDIF() {
 
       // Get items
       const itemsResult = await client.query(
-        'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+        'SELECT * FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
         [assessment.id]
       );
 

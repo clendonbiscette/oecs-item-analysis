@@ -45,7 +45,7 @@ router.get('/:assessmentId', async (req, res) => {
        FROM items i
        LEFT JOIN statistics s ON s.item_id = i.id
        WHERE i.assessment_id = $1
-       ORDER BY i.item_code, s.stat_type`,
+       ORDER BY LENGTH(i.item_code), i.item_code, s.stat_type`,
       [assessmentId]
     );
 
@@ -122,7 +122,7 @@ router.get('/:assessmentId/distractors', async (req, res) => {
       `SELECT id, item_code, correct_answer
        FROM items
        WHERE assessment_id = $1
-       ORDER BY item_code`,
+       ORDER BY LENGTH(item_code), item_code`,
       [assessmentId]
     );
 
@@ -137,7 +137,7 @@ router.get('/:assessmentId/distractors', async (req, res) => {
                 'item_id', r.item_id,
                 'response_value', r.response_value,
                 'is_correct', r.is_correct
-              ) ORDER BY i.item_code) as responses
+              ) ORDER BY LENGTH(i.item_code), i.item_code) as responses
        FROM students s
        LEFT JOIN responses r ON r.student_id = s.id
        LEFT JOIN items i ON i.id = r.item_id
@@ -747,7 +747,7 @@ router.get('/:assessmentId/percentile-analysis', async (req, res) => {
       `SELECT id, item_code, correct_answer, max_points, item_type, content_domain
        FROM items
        WHERE assessment_id = $1
-       ORDER BY item_code`,
+       ORDER BY LENGTH(item_code), item_code`,
       [assessmentId]
     );
 
@@ -981,7 +981,7 @@ router.get('/:assessmentId/dif/gender', async (req, res) => {
        FROM dif_statistics d
        JOIN items i ON i.id = d.item_id
        WHERE d.assessment_id = $1 AND d.dif_type = 'gender'
-       ORDER BY i.item_code`,
+       ORDER BY LENGTH(i.item_code), i.item_code`,
       [assessmentId]
     );
 
@@ -1029,7 +1029,7 @@ router.get('/:assessmentId/dif/percentile', async (req, res) => {
        FROM dif_statistics d
        JOIN items i ON i.id = d.item_id
        WHERE d.assessment_id = $1 AND d.dif_type = 'percentile'
-       ORDER BY i.item_code, d.group_a`,
+       ORDER BY LENGTH(i.item_code), i.item_code, d.group_a`,
       [assessmentId]
     );
 
@@ -1090,7 +1090,7 @@ router.get('/:assessmentId/dif/country', async (req, res) => {
 
     // Get items
     const itemsResult = await query(
-      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
       [assessmentId]
     );
 
@@ -1154,7 +1154,7 @@ router.get('/:assessmentId/dif/country-gender', async (req, res) => {
 
     // Get items
     const itemsResult = await query(
-      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
       [assessmentId]
     );
 
@@ -1212,7 +1212,7 @@ router.get('/:assessmentId/dif/percentile-gender', async (req, res) => {
 
     // Get items
     const itemsResult = await query(
-      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
       [assessmentId]
     );
 

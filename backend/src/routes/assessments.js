@@ -717,7 +717,7 @@ async function calculateStatistics(assessmentId) {
     
     // Calculate item score matrix for Cronbach's alpha (including max_points for weighted scoring)
     const itemsResult = await query(
-      'SELECT id, item_code, max_points, item_type FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT id, item_code, max_points, item_type FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
       [assessmentId]
     );
     const items = itemsResult.rows;
@@ -846,7 +846,7 @@ async function calculateDIFStatistics(assessmentId) {
 
     // Get items
     const itemsResult = await query(
-      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY item_code',
+      'SELECT * FROM items WHERE assessment_id = $1 ORDER BY LENGTH(item_code), item_code',
       [assessmentId]
     );
 
