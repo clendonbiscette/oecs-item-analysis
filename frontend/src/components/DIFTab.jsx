@@ -610,18 +610,66 @@ const DIFTab = ({ assessmentId }) => {
           Within each country, compares male vs female performance. Shows if gender differences vary by country.
         </Typography>
 
-        {Object.entries(byCountry).map(([country, items]) => (
-          <Accordion key={country} defaultExpanded={Object.keys(byCountry).length === 1}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6">{country}</Typography>
-              <Chip
-                label={`${items.length} items`}
-                size="small"
-                sx={{ ml: 2 }}
-              />
-            </AccordionSummary>
-            <AccordionDetails>
-              <TableContainer component={Paper}>
+        {Object.entries(byCountry).map(([country, items]) => {
+          // Prepare line chart data for this country
+          const countryGenderLineData = items.map(item => ({
+            item: item.itemCode,
+            male: (item.maleDifficulty * 100).toFixed(1),
+            female: (item.femaleDifficulty * 100).toFixed(1)
+          }));
+
+          return (
+            <Accordion key={country} defaultExpanded={Object.keys(byCountry).length === 1}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6">{country}</Typography>
+                <Chip
+                  label={`${items.length} items`}
+                  size="small"
+                  sx={{ ml: 2 }}
+                />
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box>
+                  {/* Line Chart for this country */}
+                  <Paper sx={{ p: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      {country}: Male vs Female Performance
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={countryGenderLineData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="item"
+                          tick={{ fontSize: 10 }}
+                          interval={Math.floor(countryGenderLineData.length / 15)}
+                        />
+                        <YAxis
+                          domain={[0, 100]}
+                          label={{ value: 'Difficulty (%)', angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip formatter={(value, name) => [`${value}%`, name === 'male' ? 'Male' : 'Female']} />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="male"
+                          stroke="#1976d2"
+                          name="Male Difficulty"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="female"
+                          stroke="#d81b60"
+                          name="Female Difficulty"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Paper>
+
+                  <TableContainer component={Paper}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -655,9 +703,11 @@ const DIFTab = ({ assessmentId }) => {
                   </TableBody>
                 </Table>
               </TableContainer>
-            </AccordionDetails>
-          </Accordion>
-        ))}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
       </Box>
     );
   };
