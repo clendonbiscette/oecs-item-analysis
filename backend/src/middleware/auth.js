@@ -57,7 +57,7 @@ export const requireRole = (...allowedRoles) => {
 /**
  * Middleware to enforce country-level access control
  * Admins can access all countries
- * National coordinators can only access their assigned country
+ * National coordinators can only access their assigned country (plus admin uploads)
  * Analysts have read-only access to all countries
  */
 export const enforceCountryAccess = async (req, res, next) => {
@@ -75,11 +75,14 @@ export const enforceCountryAccess = async (req, res, next) => {
         });
       }
 
-      // If the request is for a specific assessment, check if it belongs to their country
+      // If the request is for a specific assessment, check if it belongs to their country or was uploaded by admin
       const assessmentId = req.params.id || req.body.assessmentId;
       if (assessmentId) {
         const result = await query(
-          'SELECT country_id FROM assessments WHERE id = $1',
+          `SELECT a.country_id, u.role as uploader_role
+           FROM assessments a
+           LEFT JOIN users u ON a.uploaded_by = u.id
+           WHERE a.id = $1`,
           [assessmentId]
         );
 
@@ -87,8 +90,12 @@ export const enforceCountryAccess = async (req, res, next) => {
           return res.status(404).json({ error: 'Assessment not found' });
         }
 
-        const assessmentCountryId = result.rows[0].country_id;
-        if (assessmentCountryId !== req.user.country_id) {
+        const assessment = result.rows[0];
+        const assessmentCountryId = assessment.country_id;
+        const uploaderRole = assessment.uploader_role;
+
+        // Allow access if assessment belongs to their country OR was uploaded by admin
+        if (assessmentCountryId !== req.user.country_id && uploaderRole !== 'admin') {
           return res.status(403).json({
             error: 'Access denied: Assessment belongs to a different country'
           });
@@ -117,15 +124,16 @@ export const canModify = (req, res, next) => {
 
 /**
  * Filter assessments query based on user role and country
+ * Admin-uploaded assessments are visible to all users
  */
 export const filterByUserCountry = (userId, userRole, userCountryId) => {
   if (userRole === 'admin' || userRole === 'analyst') {
     // Admin and analysts see all assessments
     return { whereClause: '', params: [] };
   } else if (userRole === 'national_coordinator' && userCountryId) {
-    // National coordinators only see their country's assessments
+    // National coordinators see their country's assessments + admin uploads
     return {
-      whereClause: 'WHERE a.country_id = $1',
+      whereClause: 'WHERE (a.country_id = $1 OR a.uploaded_by IN (SELECT id FROM users WHERE role = \'admin\'))',
       params: [userCountryId]
     };
   }
