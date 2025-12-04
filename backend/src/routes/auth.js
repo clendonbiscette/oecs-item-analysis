@@ -123,12 +123,15 @@ router.post('/login', loginRateLimiter, async (req, res) => {
  */
 router.post('/register', registerRateLimiter, async (req, res) => {
   try {
-    const { email, password, fullName, role, country, accessJustification } = req.body;
+    const { email, password, fullName, country } = req.body;
+
+    // Default role is 'analyst' - admin can change during approval
+    const role = 'analyst';
 
     // Validate required fields
-    if (!email || !password || !fullName || !role || !accessJustification) {
+    if (!email || !password || !fullName) {
       return res.status(400).json({
-        error: 'Email, password, full name, role, and access justification are required'
+        error: 'Email, password, and full name are required'
       });
     }
 
@@ -155,28 +158,6 @@ router.post('/register', registerRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Password must contain at least one number' });
     }
 
-    // Validate role (cannot register as admin)
-    const allowedRoles = ['analyst', 'national_coordinator', 'user'];
-    if (!allowedRoles.includes(role)) {
-      return res.status(400).json({
-        error: 'Invalid role. Allowed roles: analyst, national_coordinator, user'
-      });
-    }
-
-    // Validate country requirement for national coordinators
-    if (role === 'national_coordinator' && !country) {
-      return res.status(400).json({
-        error: 'Country is required for National Coordinator role'
-      });
-    }
-
-    // Validate access justification length
-    if (accessJustification.length < 50 || accessJustification.length > 500) {
-      return res.status(400).json({
-        error: 'Access justification must be between 50 and 500 characters'
-      });
-    }
-
     // Check if user exists
     const existing = await query(
       'SELECT id, registration_status FROM users WHERE email = $1',
@@ -197,7 +178,7 @@ router.post('/register', registerRateLimiter, async (req, res) => {
     let countryId = null;
     if (country) {
       const countryResult = await query(
-        'SELECT id FROM member_states WHERE state_code = $1 OR state_name = $1',
+        'SELECT id FROM member_states WHERE id = $1',
         [country]
       );
       if (countryResult.rows.length > 0) {
@@ -213,26 +194,26 @@ router.post('/register', registerRateLimiter, async (req, res) => {
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user (inactive, pending verification)
+    // Role defaults to 'analyst' - admin can change during approval
     const result = await query(
       `INSERT INTO users (
         email, password_hash, full_name, role, country_id,
         is_active, email_verified, email_verification_token,
-        email_verification_expires, registration_status, access_justification
+        email_verification_expires, registration_status
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, email, full_name, role`,
       [
         email.toLowerCase(),
         passwordHash,
         fullName,
-        role,
-        countryId,
+        role, // 'analyst'
+        countryId, // Optional country_id from dropdown
         false, // is_active
         false, // email_verified
         verificationToken,
         verificationExpires,
-        'pending_verification',
-        accessJustification
+        'pending_verification'
       ]
     );
 

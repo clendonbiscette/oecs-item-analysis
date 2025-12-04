@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container,
@@ -9,29 +9,11 @@ import {
   Paper,
   Alert,
   CircularProgress,
-  MenuItem,
   LinearProgress,
   FormHelperText,
+  MenuItem,
 } from '@mui/material';
-import { registerUser } from '../services/api';
-
-const ROLES = [
-  {
-    value: 'analyst',
-    label: 'Analyst',
-    description: 'View and analyze assessment data',
-  },
-  {
-    value: 'national_coordinator',
-    label: 'National Coordinator',
-    description: 'Manage assessments for a specific country',
-  },
-  {
-    value: 'user',
-    label: 'User',
-    description: 'Basic access to view reports',
-  },
-];
+import { registerUser, getMemberStates } from '../services/api';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -39,14 +21,27 @@ export default function Register() {
     password: '',
     confirmPassword: '',
     fullName: '',
-    role: '',
+    role: 'analyst', // Default role - admin can change during approval
     country: '',
-    accessJustification: '',
   });
+  const [memberStates, setMemberStates] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Fetch OECS member states on component mount
+  useEffect(() => {
+    const fetchMemberStates = async () => {
+      try {
+        const response = await getMemberStates();
+        setMemberStates(response.data);
+      } catch (err) {
+        console.error('Failed to load member states:', err);
+      }
+    };
+    fetchMemberStates();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -75,7 +70,7 @@ export default function Register() {
   const passwordStrength = getPasswordStrength();
 
   const validateForm = () => {
-    const { email, password, confirmPassword, fullName, role, country, accessJustification } = formData;
+    const { email, password, confirmPassword, fullName } = formData;
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -116,34 +111,6 @@ export default function Register() {
       return false;
     }
 
-    // Role validation
-    if (!role) {
-      setError('Please select a role');
-      return false;
-    }
-
-    // Country validation for national coordinators
-    if (role === 'national_coordinator' && !country.trim()) {
-      setError('Country is required for National Coordinators');
-      return false;
-    }
-
-    // Justification validation
-    if (!accessJustification.trim()) {
-      setError('Access justification is required');
-      return false;
-    }
-
-    if (accessJustification.trim().length < 50) {
-      setError('Access justification must be at least 50 characters');
-      return false;
-    }
-
-    if (accessJustification.trim().length > 500) {
-      setError('Access justification must not exceed 500 characters');
-      return false;
-    }
-
     return true;
   };
 
@@ -162,9 +129,8 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
-        role: formData.role,
-        country: formData.country || undefined,
-        accessJustification: formData.accessJustification,
+        role: formData.role, // Will be 'analyst' by default
+        country: formData.country || undefined, // Optional country
       });
 
       setSuccess(true);
@@ -371,58 +337,24 @@ export default function Register() {
 
             <TextField
               margin="normal"
-              required
               fullWidth
               select
-              label="Role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              disabled={loading}
-              helperText="Select the role that best describes your intended use"
-            >
-              {ROLES.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Box>
-                    <Typography variant="body1">{option.label}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {option.description}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              margin="normal"
-              fullWidth
-              label="Country"
+              label="Country (Optional)"
               name="country"
               value={formData.country}
               onChange={handleChange}
               disabled={loading}
-              required={formData.role === 'national_coordinator'}
-              helperText={
-                formData.role === 'national_coordinator'
-                  ? 'Required for National Coordinators'
-                  : 'Optional (e.g., Saint Lucia, Grenada, SKN)'
-              }
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              multiline
-              rows={4}
-              label="Access Justification"
-              name="accessJustification"
-              value={formData.accessJustification}
-              onChange={handleChange}
-              disabled={loading}
-              helperText={`${formData.accessJustification.length}/500 characters (minimum 50)`}
-              placeholder="Please explain why you need access to this platform and how you intend to use it..."
-            />
+              helperText="Select your OECS member state"
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {memberStates.map((state) => (
+                <MenuItem key={state.id} value={state.id}>
+                  {state.state_name}
+                </MenuItem>
+              ))}
+            </TextField>
 
             <Button
               type="submit"

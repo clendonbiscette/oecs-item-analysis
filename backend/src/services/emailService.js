@@ -1,10 +1,28 @@
 /**
  * Email Service
- * Handles sending emails for the application
- *
- * MVP Implementation: Logs emails to console
- * Production: Replace with actual SMTP service (e.g., SendGrid, AWS SES, Mailgun)
+ * Handles sending emails for the application using Nodemailer with Gmail SMTP
  */
+
+import nodemailer from 'nodemailer';
+
+// Create reusable transporter object using Gmail SMTP
+const createTransporter = () => {
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.warn('⚠️  Email credentials not configured. Emails will be logged to console only.');
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD // App Password, not regular Gmail password
+    }
+  });
+};
+
+const transporter = createTransporter();
 
 /**
  * Send email verification link
@@ -90,14 +108,32 @@ If you did not create this account, please ignore this email.
     `
   };
 
-  // MVP: Log to console (replace with actual email sending in production)
-  console.log('\n📧 [EMAIL] Verification Email');
-  console.log('To:', emailContent.to);
-  console.log('Subject:', emailContent.subject);
-  console.log('Verification URL:', verificationUrl);
-  console.log('---\n');
+  // Send email using transporter if configured, otherwise log to console
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"OECS Assessment Platform" <${process.env.EMAIL_USER}>`,
+        to: emailContent.to,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      });
 
-  return { success: true, messageId: `verification-${Date.now()}` };
+      console.log('✅ Verification email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('❌ Error sending verification email:', error);
+      throw error;
+    }
+  } else {
+    // Fallback: Log to console for development/testing
+    console.log('\n📧 [EMAIL] Verification Email (Console Only - No SMTP Configured)');
+    console.log('To:', emailContent.to);
+    console.log('Subject:', emailContent.subject);
+    console.log('Verification URL:', verificationUrl);
+    console.log('---\n');
+    return { success: true, messageId: `verification-${Date.now()}` };
+  }
 }
 
 /**
@@ -181,15 +217,33 @@ If you have any questions or need assistance, please contact your administrator.
     `
   };
 
-  // MVP: Log to console
-  console.log('\n📧 [EMAIL] Approval Notification');
-  console.log('To:', emailContent.to);
-  console.log('Subject:', emailContent.subject);
-  console.log('Role:', role);
-  if (country) console.log('Country:', country);
-  console.log('---\n');
+  // Send email using transporter if configured, otherwise log to console
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"OECS Assessment Platform" <${process.env.EMAIL_USER}>`,
+        to: emailContent.to,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      });
 
-  return { success: true, messageId: `approval-${Date.now()}` };
+      console.log('✅ Approval email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('❌ Error sending approval email:', error);
+      throw error;
+    }
+  } else {
+    // Fallback: Log to console
+    console.log('\n📧 [EMAIL] Approval Notification (Console Only)');
+    console.log('To:', emailContent.to);
+    console.log('Subject:', emailContent.subject);
+    console.log('Role:', role);
+    if (country) console.log('Country:', country);
+    console.log('---\n');
+    return { success: true, messageId: `approval-${Date.now()}` };
+  }
 }
 
 /**
@@ -262,14 +316,32 @@ If you have questions about this decision or believe there has been an error, pl
     `
   };
 
-  // MVP: Log to console
-  console.log('\n📧 [EMAIL] Rejection Notification');
-  console.log('To:', emailContent.to);
-  console.log('Subject:', emailContent.subject);
-  console.log('Reason:', reason);
-  console.log('---\n');
+  // Send email using transporter if configured, otherwise log to console
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"OECS Assessment Platform" <${process.env.EMAIL_USER}>`,
+        to: emailContent.to,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      });
 
-  return { success: true, messageId: `rejection-${Date.now()}` };
+      console.log('✅ Rejection email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('❌ Error sending rejection email:', error);
+      throw error;
+    }
+  } else {
+    // Fallback: Log to console
+    console.log('\n📧 [EMAIL] Rejection Notification (Console Only)');
+    console.log('To:', emailContent.to);
+    console.log('Subject:', emailContent.subject);
+    console.log('Reason:', reason);
+    console.log('---\n');
+    return { success: true, messageId: `rejection-${Date.now()}` };
+  }
 }
 
 /**
