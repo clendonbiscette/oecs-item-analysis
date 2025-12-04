@@ -311,6 +311,13 @@ router.delete('/:id/permanent', async (req, res) => {
       [id]
     );
 
+    // Set user_id to NULL in audit logs to maintain audit trail
+    // We keep the logs but disassociate them from the deleted user
+    await query(
+      'UPDATE audit_logs SET user_id = NULL WHERE user_id = $1',
+      [id]
+    );
+
     // Permanently delete the user
     await query('DELETE FROM users WHERE id = $1', [id]);
 
