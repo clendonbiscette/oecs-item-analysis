@@ -345,6 +345,182 @@ If you have questions about this decision or believe there has been an error, pl
 }
 
 /**
+ * Send audit notification to all admins
+ * @param {Object} params
+ * @param {Array<string>} params.adminEmails - Array of admin email addresses
+ * @param {string} params.actionType - Type of action performed
+ * @param {string} params.description - Description of the action
+ * @param {string} params.performedBy - Name/email of user who performed action
+ * @param {string} params.status - 'success' or 'failure'
+ * @param {Object} params.details - Additional details about the action
+ */
+export async function sendAuditNotification({ adminEmails, actionType, description, performedBy, status, details = {} }) {
+  if (!adminEmails || adminEmails.length === 0) {
+    console.log('⚠️  No admin emails to notify');
+    return { success: false, reason: 'no_admins' };
+  }
+
+  const platformUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const auditLogsUrl = `${platformUrl}/audit-logs`;
+
+  // Format action type for display
+  const formatActionType = (action) => {
+    return action.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
+  // Determine if this is a critical/security action
+  const isCritical = ['delete', 'user_rejection', 'user_approval', 'login'].includes(actionType) || status === 'failure';
+  const statusColor = status === 'success' ? '#10b981' : '#ef4444';
+  const statusBg = status === 'success' ? '#d1fae5' : '#fee2e2';
+
+  const emailContent = {
+    subject: `${isCritical ? '🔔 ' : ''}Audit Alert: ${formatActionType(actionType)} - OECS Platform`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+            .info-box { background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin: 20px 0; }
+            .info-row { display: flex; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+            .info-row:last-child { border-bottom: none; }
+            .info-label { font-weight: 600; color: #6b7280; width: 140px; }
+            .info-value { color: #1f2937; flex: 1; }
+            .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background: ${statusBg}; color: ${statusColor}; }
+            .button { display: inline-block; padding: 12px 30px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+            .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>${isCritical ? '🔔 ' : ''}Audit Event Notification</h1>
+            </div>
+            <div class="content">
+              <p><strong>An audited action has occurred on the OECS Assessment Platform.</strong></p>
+
+              <div class="info-box">
+                <div class="info-row">
+                  <span class="info-label">Action:</span>
+                  <span class="info-value"><strong>${formatActionType(actionType)}</strong></span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="info-value"><span class="status-badge">${status.toUpperCase()}</span></span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Performed By:</span>
+                  <span class="info-value">${performedBy || 'System'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Description:</span>
+                  <span class="info-value">${description}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Timestamp:</span>
+                  <span class="info-value">${new Date().toLocaleString('en-US', { timeZone: 'America/Dominica', dateStyle: 'full', timeStyle: 'long' })}</span>
+                </div>
+                ${details.resourceType ? `
+                <div class="info-row">
+                  <span class="info-label">Resource Type:</span>
+                  <span class="info-value">${details.resourceType}</span>
+                </div>
+                ` : ''}
+                ${details.ipAddress ? `
+                <div class="info-row">
+                  <span class="info-label">IP Address:</span>
+                  <span class="info-value">${details.ipAddress}</span>
+                </div>
+                ` : ''}
+                ${details.errorMessage ? `
+                <div class="info-row">
+                  <span class="info-label">Error:</span>
+                  <span class="info-value" style="color: #ef4444;">${details.errorMessage}</span>
+                </div>
+                ` : ''}
+              </div>
+
+              ${isCritical ? `
+              <div class="alert">
+                <strong>⚠️ This is a critical security action.</strong> Please review the audit logs for details.
+              </div>
+              ` : ''}
+
+              <p style="text-align: center;">
+                <a href="${auditLogsUrl}" class="button">View Audit Logs</a>
+              </p>
+
+              <p style="color: #6b7280; font-size: 14px;">
+                This is an automated notification. To manage notification preferences, contact your system administrator.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} OECS Assessment Item Analysis</p>
+              <p style="font-size: 12px; margin-top: 8px;">Security Audit Notification System</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+AUDIT EVENT NOTIFICATION - OECS Assessment Platform
+${isCritical ? '🔔 CRITICAL ACTION' : ''}
+
+Action: ${formatActionType(actionType)}
+Status: ${status.toUpperCase()}
+Performed By: ${performedBy || 'System'}
+Description: ${description}
+Timestamp: ${new Date().toLocaleString('en-US', { timeZone: 'America/Dominica', dateStyle: 'full', timeStyle: 'long' })}
+${details.resourceType ? `Resource Type: ${details.resourceType}` : ''}
+${details.ipAddress ? `IP Address: ${details.ipAddress}` : ''}
+${details.errorMessage ? `Error: ${details.errorMessage}` : ''}
+
+${isCritical ? '⚠️ This is a critical security action. Please review the audit logs for details.' : ''}
+
+View full audit logs: ${auditLogsUrl}
+
+---
+This is an automated notification from the OECS Assessment Platform Security Audit System.
+© ${new Date().getFullYear()} OECS Assessment Item Analysis
+    `
+  };
+
+  // Send email using transporter if configured, otherwise log to console
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"OECS Assessment Platform - Audit System" <${process.env.EMAIL_USER}>`,
+        to: adminEmails.join(', '),
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      });
+
+      console.log(`✅ Audit notification sent to ${adminEmails.length} admin(s):`, info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('❌ Error sending audit notification:', error);
+      // Don't throw - audit notification failure shouldn't break the main operation
+      return { success: false, error: error.message };
+    }
+  } else {
+    // Fallback: Log to console
+    console.log('\n📧 [EMAIL] Audit Notification (Console Only - No SMTP Configured)');
+    console.log('To:', adminEmails.join(', '));
+    console.log('Subject:', emailContent.subject);
+    console.log('Action:', formatActionType(actionType));
+    console.log('Status:', status);
+    console.log('Description:', description);
+    console.log('---\n');
+    return { success: true, messageId: `audit-${Date.now()}` };
+  }
+}
+
+/**
  * Generate a secure random token for email verification
  * @returns {string} UUID v4 token
  */
