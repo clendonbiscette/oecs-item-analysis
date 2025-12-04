@@ -95,8 +95,9 @@ export const splitRegionalAssessment = (assessmentId) => {
   return api.post(`/assessments/${assessmentId}/split`);
 };
 
-export const downloadTemplate = () => {
+export const downloadTemplate = (templateType = 'oera') => {
   return api.get('/assessments/template/download', {
+    params: { type: templateType },
     responseType: 'blob',
   });
 };

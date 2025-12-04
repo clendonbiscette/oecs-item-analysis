@@ -236,13 +236,20 @@ export default function Upload() {
     }
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = async (templateType = 'oera') => {
     try {
-      const response = await downloadTemplate();
+      const response = await downloadTemplate(templateType);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'OERA_Upload_Template.csv');
+
+      // Set appropriate filename based on template type
+      const filenames = {
+        'oera': 'OERA_Upload_Template.csv',
+        'oema': 'OEMA_Upload_Template.csv'
+      };
+
+      link.setAttribute('download', filenames[templateType] || 'Upload_Template.csv');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -318,18 +325,39 @@ export default function Upload() {
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={handleDownloadTemplate}
-                sx={{
-                  borderRadius: 2.5,
-                  px: 3,
-                }}
-              >
-                Download CSV Template
-              </Button>
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ textAlign: 'center', mb: 2, fontWeight: 600 }}>
+                Download Template:
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => handleDownloadTemplate('oera')}
+                  sx={{
+                    borderRadius: 2.5,
+                    px: 3,
+                    textTransform: 'none',
+                  }}
+                >
+                  OERA (MC Only)
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => handleDownloadTemplate('oema')}
+                  sx={{
+                    borderRadius: 2.5,
+                    px: 3,
+                    textTransform: 'none',
+                  }}
+                >
+                  OEMA (MC + CR)
+                </Button>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                MC = Multiple Choice only, MC + CR = Multiple Choice + Constructed Response
+              </Typography>
             </Box>
 
             <Box

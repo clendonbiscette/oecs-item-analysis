@@ -37,11 +37,37 @@ router.use(authMiddleware);
 /**
  * GET /api/assessments/template/download
  * Download CSV template for data upload
+ * Query param: ?type=oera|oema (default: oera)
  */
 router.get('/template/download', (req, res) => {
   try {
-    const templatePath = path.join(__dirname, '../../templates/oera_template.csv');
-    res.download(templatePath, 'OERA_Upload_Template.csv', (err) => {
+    const templateType = req.query.type || 'oera';
+
+    // Map template types to file names and download names
+    const templates = {
+      'oera': {
+        file: 'OERA_template.csv',
+        download: 'OERA_Upload_Template.csv',
+        description: 'OERA Multiple Choice Template'
+      },
+      'oema': {
+        file: 'OEMA_Template.csv',
+        download: 'OEMA_Upload_Template.csv',
+        description: 'OEMA Mixed Format Template (MC + CR)'
+      }
+    };
+
+    const template = templates[templateType.toLowerCase()];
+
+    if (!template) {
+      return res.status(400).json({
+        error: 'Invalid template type. Use: oera or oema'
+      });
+    }
+
+    const templatePath = path.join(__dirname, '../../templates', template.file);
+
+    res.download(templatePath, template.download, (err) => {
       if (err) {
         console.error('Template download error:', err);
         res.status(500).json({ error: 'Failed to download template' });
