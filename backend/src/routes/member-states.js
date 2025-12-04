@@ -3,11 +3,11 @@ import { query } from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
-router.use(authMiddleware);
 
 /**
  * GET /api/member-states
  * Get all OECS member states
+ * Public endpoint - used in registration form
  */
 router.get('/', async (req, res) => {
   try {
@@ -29,8 +29,9 @@ router.get('/', async (req, res) => {
 /**
  * GET /api/member-states/:id
  * Get a specific member state by ID
+ * Requires authentication
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -55,8 +56,9 @@ router.get('/:id', async (req, res) => {
 /**
  * GET /api/member-states/:id/assessments
  * Get all assessments for a specific member state
+ * Requires authentication
  */
-router.get('/:id/assessments', async (req, res) => {
+router.get('/:id/assessments', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
