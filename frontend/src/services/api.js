@@ -152,6 +152,10 @@ export const deleteUser = (id) => {
   return api.delete(`/users/${id}`);
 };
 
+export const permanentlyDeleteUser = (id) => {
+  return api.delete(`/users/${id}/permanent`);
+};
+
 // Statistics
 export const getStatistics = (assessmentId) => {
   return api.get(`/statistics/${assessmentId}`);

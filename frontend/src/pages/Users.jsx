@@ -35,6 +35,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
   VpnKey as KeyIcon,
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
@@ -46,6 +47,7 @@ import {
   updateUser,
   updateUserPassword,
   deleteUser,
+  permanentlyDeleteUser,
   getPendingUsers,
   approveUser,
   rejectUser,
@@ -274,6 +276,25 @@ export default function Users() {
     }
   };
 
+  const handlePermanentDelete = async (id, email) => {
+    if (!window.confirm(`⚠️ PERMANENT DELETION\n\nAre you sure you want to PERMANENTLY delete user ${email}?\n\nThis action CANNOT be undone! The user will be completely removed from the database.`)) {
+      return;
+    }
+
+    // Double confirmation for safety
+    if (!window.confirm(`Final confirmation: Type YES in the next prompt to permanently delete ${email}`)) {
+      return;
+    }
+
+    try {
+      await permanentlyDeleteUser(id);
+      setSuccess(`User ${email} permanently deleted`);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to permanently delete user');
+    }
+  };
+
   const handleOpenApproveDialog = (user) => {
     setApprovingUser(user);
     setApprovalOverride({
@@ -466,6 +487,17 @@ export default function Users() {
                     >
                       <DeleteIcon />
                     </IconButton>
+                    {!user.is_active && (
+                      <Tooltip title="Permanently Delete (Cannot be undone!)">
+                        <IconButton
+                          size="small"
+                          sx={{ color: 'error.dark' }}
+                          onClick={() => handlePermanentDelete(user.id, user.email)}
+                        >
+                          <DeleteForeverIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -271,4 +271,67 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+/**
+ * DELETE /api/users/:id/permanent
+ * Permanently delete user from database (hard delete)
+ * Only works on users who are already deactivated (is_active = false)
+ */
+router.delete('/:id/permanent', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent deleting self
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    // Check if user exists and is already inactive
+    const userCheck = await query(
+      'SELECT id, is_active, email FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userCheck.rows[0];
+
+    // Only allow permanent deletion of inactive users
+    if (user.is_active) {
+      return res.status(400).json({
+        error: 'User must be deactivated first before permanent deletion'
+      });
+    }
+
+    // Set uploaded_by to NULL for any assessments they uploaded
+    // This maintains referential integrity
+    await query(
+      'UPDATE assessments SET uploaded_by = NULL WHERE uploaded_by = $1',
+      [id]
+    );
+
+    // Permanently delete the user
+    await query('DELETE FROM users WHERE id = $1', [id]);
+
+    // Log audit trail
+    await req.audit.log({
+      userId: req.user.id,
+      actionType: 'delete',
+      resourceType: 'user',
+      resourceId: id,
+      description: `Permanently deleted user: ${user.email}`,
+      changes: { deleted_user_email: user.email }
+    });
+
+    res.json({
+      message: 'User permanently deleted successfully',
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Error permanently deleting user:', error);
+    res.status(500).json({ error: 'Failed to permanently delete user' });
+  }
+});
+
 export default router;
